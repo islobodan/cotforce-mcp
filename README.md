@@ -131,13 +131,18 @@ Uses MCP native `sampling/createMessage` to call the configured LLM. The system 
 git clone <repo>
 cd cotforce-mcp
 npm install
-npm run build  # compile TypeScript to dist/
-npm run dev    # tsc --watch
-npm test       # jest
+npm run build      # compile TypeScript to dist/
+npm run dev        # tsc --watch
+npm test           # jest + @slbdn/mcp-tester integration tests
+npm run test:smoke # quick smoke test via mcp-tester CLI
+npm run test:tools # list available tools via mcp-tester CLI
 ```
 
 ### Build
 TypeScript source lives in `src/index.ts` and compiles to `dist/index.js`. Run `npm run build` before starting.
+
+### Testing
+Uses [`@slbdn/mcp-tester`](https://www.npmjs.com/package/@slbdn/mcp-tester) for automated MCP server testing. Includes Jest matchers (`toHaveTool`, `toReturnTextContaining`, etc.) and a CLI for quick smoke tests.
 
 ---
 
