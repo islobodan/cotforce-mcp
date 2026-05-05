@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- Comprehensive test suite: 65+ tests across parser, tokens, and server integration
+- Extracted library modules: `src/lib/parser.ts`, `src/lib/tokens.ts`, `src/lib/prompts.ts`
+- `@slbdn/mcp-tester` integration for MCP server testing
+- Jest + ts-jest ESM test runner configuration
+- `.npmrc` and `.npmignore` for publish configuration
+
+### Changed
+- `AgenticCotSchema` now rejects `undefined` result values via `z.custom`
+- Root `index.js` launcher checks for built `dist/` before delegating
+
 ## [1.0.0] - 2026-05-05
 
 ### Added

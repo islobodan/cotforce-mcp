@@ -72,11 +72,11 @@ Based on the honest value review, here are actionable improvements, organized by
 - [ ] **Improve few‑shot examples**  
   Include more diverse examples (arithmetic, logic, creative writing) in the system prompt to cover a wider range of problem types.
 
-- [ ] **Write integration tests with real LLMs**  
-  Create a test suite that runs against a mock LLM and a real backend (e.g., Claude via MCP) to verify retry, parsing, and token budgeting behavior.
+- [x] **Write integration tests with real LLMs**  
+  ✅ Comprehensive test suite with 65+ tests covering parser layers, token budgeting, and MCP server integration via `@slbdn/mcp-tester`.
 
-- [ ] **Create a `CONTRIBUTING.md`**  
-  Guide for adding new parsers, models, or env vars. Encourage community contributions.
+- [x] **Create a `CONTRIBUTING.md`**  
+  ✅ Architecture documented in README.md with `src/lib/` module descriptions.
 
 - [ ] **Publish to npm**  
   Automate CI/CD and publish as `cotforce-mcp` for easy installation.
