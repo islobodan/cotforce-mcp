@@ -27,7 +27,7 @@
 ```bash
 npm install cotforce-mcp
 # or
-git clone https://github.com/your-org/cotforce-mcp
+git clone https://github.com/islobodan/cotforce-mcp
 cd cotforce-mcp
 npm install
 ```

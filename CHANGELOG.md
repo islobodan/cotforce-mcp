@@ -32,5 +32,5 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Removed
 - Inert `STREAM` environment flag (Node.js MCP SDK does not support streaming)
 
-[Unreleased]: https://github.com/your-org/cotforce-mcp/compare/v1.0.0...HEAD
-[1.0.0]: https://github.com/your-org/cotforce-mcp/releases/tag/v1.0.0
+[Unreleased]: https://github.com/islobodan/cotforce-mcp/compare/v1.0.0...HEAD
+[1.0.0]: https://github.com/islobodan/cotforce-mcp/releases/tag/v1.0.0

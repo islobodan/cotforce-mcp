@@ -28,7 +28,7 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/your-org/cotforce-mcp"
+    "url": "https://github.com/islobodan/cotforce-mcp"
   },
   "engines": {
     "node": ">=18"
