@@ -9,7 +9,7 @@
     "start": "node index.js",
     "dev": "tsc --watch",
     "build": "tsc",
-    "test": "node --experimental-vm-modules node_modules/.bin/jest",
+    "test": "NODE_OPTIONS='--experimental-vm-modules' jest",
     "test:smoke": "mcp-tester test node index.js",
     "test:tools": "mcp-tester list-tools node index.js",
     "typecheck": "tsc --noEmit && tsc -p tsconfig.test.json --noEmit"
@@ -43,8 +43,10 @@
   },
   "devDependencies": {
     "@slbdn/mcp-tester": "^1.1.0",
+    "@types/jest": "^30.0.0",
     "@types/node": "^20.0.0",
     "jest": "^29.7.0",
+    "ts-jest": "^29.4.9",
     "typescript": "^5.3.0"
   },
   "files": [

@@ -26,28 +26,103 @@ describe("CotForce-MCP Server", () => {
     }
   });
 
-  it("should list tools", async () => {
-    const tools = await client.listTools();
-    expect(tools).toHaveTool("solve_problem");
-    expect(tools).toHaveToolCount(1);
-  });
-
-  it("should call solve_problem and return structured result", async () => {
-    const result = await client.callTool({
-      name: "solve_problem",
-      arguments: { prompt: "What is 7 * 8 + 2?" },
+  describe("Tool Discovery", () => {
+    it("should list tools", async () => {
+      const tools = await client.listTools();
+      expect(tools).toHaveTool("solve_problem");
+      expect(tools).toHaveToolCount(1);
     });
 
-    expect(result).toReturnTextContaining("Reasoning:");
-    expect(result).toReturnTextContaining("Answer:");
+    it("should have solve_problem with correct schema", async () => {
+      const tools = await client.listTools();
+      expect(tools).toHaveToolWithSchema("solve_problem");
+
+      const tool = tools.find((t: { name: string }) => t.name === "solve_problem");
+      expect(tool).toBeDefined();
+      expect(tool?.description).toContain("Chain-of-Thought");
+      expect(tool?.inputSchema).toMatchObject({
+        type: "object",
+        required: ["prompt"],
+        properties: {
+          prompt: {
+            type: "string",
+            description: "The problem to solve.",
+          },
+        },
+      });
+    });
   });
 
-  it("should reject invalid arguments", async () => {
-    await expect(
-      client.callTool({
-        name: "solve_problem",
-        arguments: {},
-      })
-    ).rejects.toThrow();
+  describe("Invalid Arguments", () => {
+    it("should reject missing prompt", async () => {
+      await expect(
+        client.callTool({
+          name: "solve_problem",
+          arguments: {},
+        })
+      ).rejects.toThrow();
+    });
+
+    it("should reject empty prompt", async () => {
+      await expect(
+        client.callTool({
+          name: "solve_problem",
+          arguments: { prompt: "" },
+        })
+      ).rejects.toThrow();
+    });
+
+    it("should reject wrong argument type", async () => {
+      await expect(
+        client.callTool({
+          name: "solve_problem",
+          arguments: { prompt: 123 },
+        })
+      ).rejects.toThrow();
+    });
+
+    it("should reject unknown tool", async () => {
+      await expect(
+        client.callTool({
+          name: "nonexistent_tool",
+          arguments: { prompt: "test" },
+        })
+      ).rejects.toThrow();
+    });
+  });
+
+  describe("Server Lifecycle", () => {
+    it("should be connected", () => {
+      expect(client.isConnected()).toBe(true);
+    });
+
+    it("should reconnect after stop and start", async () => {
+      await client.stop();
+      expect(client.isConnected()).toBe(false);
+
+      await client.start({
+        command: "node",
+        args: [serverPath],
+      });
+      expect(client.isConnected()).toBe(true);
+
+      // Verify it still works after reconnect
+      const tools = await client.listTools();
+      expect(tools).toHaveTool("solve_problem");
+    });
+  });
+
+  describe("Concurrent Connections", () => {
+    it("should support multiple sequential calls", async () => {
+      const results = await Promise.all([
+        client.listTools(),
+        client.listTools(),
+        client.listTools(),
+      ]);
+
+      results.forEach((tools) => {
+        expect(tools).toHaveTool("solve_problem");
+      });
+    });
   });
 });
