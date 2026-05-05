@@ -1,0 +1,53 @@
+{
+  "name": "cotforce-mcp",
+  "version": "1.0.0",
+  "description": "Strict Chain‑of‑Thought Enforcement MCP Server – forces LLMs to produce structured CoT outputs with adaptive parsing, retry logic, token budgeting, and configurable model.",
+  "main": "index.js",
+  "types": "dist/index.d.ts",
+  "type": "module",
+  "scripts": {
+    "start": "node index.js",
+    "dev": "tsc --watch",
+    "build": "tsc",
+    "test": "node --experimental-vm-modules node_modules/.bin/jest"
+  },
+  "bin": {
+    "cotforce-mcp": "./index.js"
+  },
+  "keywords": [
+    "mcp",
+    "chain-of-thought",
+    "cot",
+    "llm",
+    "structured-output",
+    "model-context-protocol",
+    "enforcement",
+    "adapative-parsing"
+  ],
+  "author": "Bwana",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/your-org/cotforce-mcp"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.0.0",
+    "zod": "^3.22.0",
+    "tiktoken": "^1.0.15"
+  },
+  "devDependencies": {
+    "typescript": "^5.3.0",
+    "jest": "^29.7.0",
+    "@types/node": "^20.0.0"
+  },
+  "optionalDependencies": {},
+  "files": [
+    "index.js",
+    "dist",
+    "README.md",
+    "LICENSE"
+  ]
+}
