@@ -153,7 +153,7 @@ TypeScript source lives in `src/index.ts` and compiles to `dist/index.js`. Run `
 
 ## 📄 License
 
-MIT © Bwana
+MIT © Slobodan Ivkovic
 
 ---
 
