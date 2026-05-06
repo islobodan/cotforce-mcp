@@ -24,12 +24,221 @@ Here are diverse example prompts that showcase the server's capabilities.
 }
 ```
 
-### 3. Prime Numbers
+---
+
+## Hard Problems That Require CoT (Under-30B Models Often Fail)
+
+### 3. Self-Descriptive Number (Autogram)
+**Requires exhaustive search or constraint propagation. Easy to guess wrong.**
 ```json
 {
   "name": "solve_problem",
   "arguments": {
-    "prompt": "List all prime numbers between 10 and 20"
+    "prompt": "Find a 4-digit number ABCD where: A = count of digit 0 in the number, B = count of digit 1, C = count of digit 2, D = count of digit 3. For example, if the number were 1210, you'd check: does it have 1 zero? 2 ones? 1 two? 0 threes? Test every possibility systematically from 0000 upward until you find the one that satisfies all four conditions.",
+    "resultSchema": {
+      "number": "string",
+      "verification": "object"
+    }
+  }
+}
+```
+
+### 4. Four Knights and Knaves (Interlocking Statements)
+**Requires truth-table checking. Smaller models guess or contradict themselves.**
+```json
+{
+  "name": "solve_problem",
+  "arguments": {
+    "prompt": "On an island, knights always tell the truth and knaves always lie. You meet A, B, C, D. A says: 'Exactly two of us are knights.' B says: 'C is a knave.' C says: 'A and B are the same type.' D says: 'At least one of A, B, C is a knight.' Determine who is a knight and who is a knave. Check every combination systematically and show which statements hold or fail.",
+    "resultSchema": {
+      "A": "string",
+      "B": "string",
+      "C": "string",
+      "D": "string",
+      "reasoning": "string"
+    }
+  }
+}
+```
+
+### 5. Derangement Count for 5 Items
+**Inclusion-exclusion with 5 terms. Easy to miscount without careful formula tracking.**
+```json
+{
+  "name": "solve_problem",
+  "arguments": {
+    "prompt": "Five people (A,B,C,D,E) each write their name on a card and put it in a hat. Each person draws one card at random. How many ways can they draw cards so that NO person gets their own name back? Use inclusion-exclusion: count all permutations, subtract those where at least one person gets their own card, add back where at least two do, etc. Show every term in the formula.",
+    "resultSchema": {
+      "answer": "number",
+      "inclusion_exclusion_terms": "object"
+    }
+  }
+}
+```
+
+### 6. Grid Path Counting with Obstacles
+**Requires dynamic programming or careful subtraction. Smaller models try to enumerate and lose count.**
+```json
+{
+  "name": "solve_problem",
+  "arguments": {
+    "prompt": "On a 5x5 grid, you start at the bottom-left corner (0,0) and want to reach the top-right corner (4,4). You can only move right or up. Three cells are blocked: (1,1), (2,3), and (3,1). Calculate how many valid paths exist. Use a step-by-step dynamic programming table: for each cell, count paths = paths from left + paths from below (if not blocked). Show the full 5x5 grid with path counts.",
+    "resultSchema": {
+      "total_paths": "number",
+      "dp_table": "object"
+    }
+  }
+}
+```
+
+### 7. Complex Simultaneous Equations (4 Variables)
+**High working memory. Smaller models drop terms or make sign errors.**
+```json
+{
+  "name": "solve_problem",
+  "arguments": {
+    "prompt": "Solve this system step by step. W + X + Y + Z = 10. W + 2X + 3Y + 4Z = 20. W + 3X + 5Y + 7Z = 31. W + 4X + 7Y + 10Z = 42. Find W, X, Y, Z. Eliminate one variable at a time, showing each reduced system clearly.",
+    "resultSchema": {
+      "W": "number",
+      "X": "number",
+      "Y": "number",
+      "Z": "number"
+    }
+  }
+}
+```
+
+### 8. Nim Game Strategy (Binary XOR)
+**Non-intuitive winning strategy. Smaller models suggest random moves.**
+```json
+{
+  "name": "solve_problem",
+  "arguments": {
+    "prompt": "In the game of Nim, there are three piles with 3, 5, and 7 stones. Two players take turns removing any number of stones from a single pile. The player who takes the last stone wins. Using binary XOR (nim-sum), determine whether the first player has a winning strategy. If yes, show the exact first move they should make. Compute the binary representations and XOR them step by step.",
+    "resultSchema": {
+      "first_player_wins": "boolean",
+      "nim_sum": "number",
+      "recommended_move": "string"
+    }
+  }
+}
+```
+
+### 9. Counting Triangles in a Complex Figure
+**Systematic enumeration required. Easy to miss overlapping triangles.**
+```json
+{
+  "name": "solve_problem",
+  "arguments": {
+    "prompt": "A large equilateral triangle is divided into 4 smaller equilateral triangles per side (like a Sierpinski sieve of depth 2). Count ALL triangles of every size in the figure. Don't guess — categorize by side length (1 unit, 2 units, 3 units, 4 units) and count each category separately, then sum.",
+    "resultSchema": {
+      "total_triangles": "number",
+      "by_size": "object"
+    }
+  }
+}
+```
+
+### 10. Multi-Conditional Probability
+**Bayes' theorem with multiple conditions. Smaller models multiply wrong probabilities.**
+```json
+{
+  "name": "solve_problem",
+  "arguments": {
+    "prompt": "A factory has three machines: A produces 40% of items with 2% defect rate, B produces 35% with 3% defect rate, C produces 25% with 4% defect rate. A random item is defective. What is the probability it came from machine B? Use Bayes' theorem. First compute P(defect), then P(defect|B), then apply the formula. Show all fractions before simplifying.",
+    "resultSchema": {
+      "probability": "string",
+      "numerator": "string",
+      "denominator": "string"
+    }
+  }
+}
+```
+
+### 11. Tournament Ranking from Partial Results
+**Constraint propagation across multiple matches. Easy to make contradictory assumptions.**
+```json
+{
+  "name": "solve_problem",
+  "arguments": {
+    "prompt": "Four players (P1, P2, P3, P4) played a round-robin tournament (everyone plays everyone once). Results: P1 beat P2. P2 beat P3. P3 beat P4. P4 beat P1. P1 beat P3. Each win = 2 points, draw = 1, loss = 0. Rank all players by points. If tied, use head-to-head. Show the full results table and how each player's total was calculated.",
+    "resultSchema": {
+      "rankings": "object",
+      "points_table": "object"
+    }
+  }
+}
+```
+
+### 12. Recursive Combinatorics (Catalan-like)
+**Requires building recurrence relation from first principles.**
+```json
+{
+  "name": "solve_problem",
+  "arguments": {
+    "prompt": "You have 6 pairs of parentheses. How many valid ways can you arrange them so every opening '(' has a matching closing ')' and they are properly nested? For n=1: () → 1 way. n=2: ()(), (()) → 2 ways. n=3: 5 ways. Build a recurrence: C(n) = sum of C(i)*C(n-1-i) for i=0 to n-1. Compute C(4), C(5), C(6) step by step using previously computed values.",
+    "resultSchema": {
+      "C4": "number",
+      "C5": "number",
+      "C6": "number",
+      "recurrence_explanation": "string"
+    }
+  }
+}
+```
+
+### 13. Clock Angle Problem with Continuous Motion
+**Modular arithmetic plus relative speed. Smaller models use discrete hour positions.**
+```json
+{
+  "name": "solve_problem",
+  "arguments": {
+    "prompt": "At 3:15, what is the exact angle between the hour and minute hands of an analog clock? Remember the hour hand moves continuously — it is not exactly on the 3. Calculate the position of each hand in degrees from 12 o'clock, then find the smaller angle between them.",
+    "resultSchema": {
+      "minute_hand_degrees": "number",
+      "hour_hand_degrees": "number",
+      "angle": "number"
+    }
+  }
+}
+```
+
+### 14. Magic Square Construction
+**Requires algebraic reasoning and constraint checking.**
+```json
+{
+  "name": "solve_problem",
+  "arguments": {
+    "prompt": "Construct a 3x3 magic square using the numbers 1 through 9 exactly once, where every row, column, and diagonal sums to the same value. First determine what the magic sum must be (total of 1-9 divided by 3). Then place the center number using the property that it appears in 4 lines. Build the square step by step, verifying each row/column/diagonal as you go.",
+    "resultSchema": {
+      "magic_sum": "number",
+      "square": "object",
+      "verifications": "object"
+    }
+  }
+}
+```
+
+---
+
+## Classic Problems (Moderate Difficulty)
+
+### 15. Logic Puzzle — Mislabeled Boxes
+```json
+{
+  "name": "solve_problem",
+  "arguments": {
+    "prompt": "Three boxes are labeled 'Apples', 'Oranges', and 'Mixed'. All labels are wrong. You can pick one fruit from one box. How do you correctly relabel all boxes?"
+  }
+}
+```
+
+### 16. Calendar/Date Calculation
+```json
+{
+  "name": "solve_problem",
+  "arguments": {
+    "prompt": "January 1, 2024 was a Monday. Using only reasoning, calculate what day of the week December 25, 2024 falls on. Account for 2024 being a leap year. Show your day-counting step by step."
   }
 }
 ```
@@ -38,38 +247,7 @@ Here are diverse example prompts that showcase the server's capabilities.
 
 ## With Result Schema Validation
 
-### 4. Structured Math Result
-```json
-{
-  "name": "solve_problem",
-  "arguments": {
-    "prompt": "Find the roots of x² - 5x + 6 = 0",
-    "resultSchema": {
-      "roots": "object",
-      "count": "number"
-    }
-  }
-}
-```
-
-### 5. Person Profile
-```json
-{
-  "name": "solve_problem",
-  "arguments": {
-    "prompt": "Create a profile for a fictional software engineer named Alex who works at a startup in San Francisco",
-    "resultSchema": {
-      "name": "string",
-      "role": "string",
-      "location": "string",
-      "skills": "object",
-      "experience_years": "number"
-    }
-  }
-}
-```
-
-### 6. Code Review Analysis
+### 17. Code Review Analysis
 ```json
 {
   "name": "solve_problem",
@@ -86,156 +264,9 @@ Here are diverse example prompts that showcase the server's capabilities.
 
 ---
 
-## Complex Reasoning (CoT Stress Tests)
-
-### 7. Logic Puzzle — Mislabeled Boxes
-```json
-{
-  "name": "solve_problem",
-  "arguments": {
-    "prompt": "Three boxes are labeled 'Apples', 'Oranges', and 'Mixed'. All labels are wrong. You can pick one fruit from one box. How do you correctly relabel all boxes?"
-  }
-}
-```
-
-### 8. Multi-step Deduction
-```json
-{
-  "name": "solve_problem",
-  "arguments": {
-    "prompt": "A farmer has 17 sheep and all but 9 die. How many sheep are left?"
-  }
-}
-```
-
-### 9. Probability with Constraints
-```json
-{
-  "name": "solve_problem",
-  "arguments": {
-    "prompt": "What is the probability of rolling a sum of 7 with two fair six-sided dice?"
-  }
-}
-```
-
----
-
-## Problems That Require CoT (Under-30B Models Fail Without It)
-
-### 10. Frobenius Coin Problem
-**Smaller models without CoT often guess wrong or fail to prove.**
-```json
-{
-  "name": "solve_problem",
-  "arguments": {
-    "prompt": "Using only 3-cent and 5-cent stamps, what is the largest postage amount you CANNOT make? Prove your answer by checking every amount from 1 upward, showing which are possible and why the largest impossible one cannot be formed.",
-    "resultSchema": {
-      "largest_impossible": "number",
-      "explanation": "string"
-    }
-  }
-}
-```
-
-### 11. Water Jug Problem (State Tracking)
-**Requires tracking jug states step-by-step. Smaller models hallucinate invalid moves.**
-```json
-{
-  "name": "solve_problem",
-  "arguments": {
-    "prompt": "You have a 3-liter jug and a 5-liter jug. The faucet is broken — you can only fill a jug completely, empty it completely, or pour from one to the other until one is empty or the other is full. Describe the exact sequence of steps to measure exactly 4 liters. Track the state (amount in each jug) after every single move.",
-    "resultSchema": {
-      "steps": "object",
-      "step_count": "number"
-    }
-  }
-}
-```
-
-### 12. Age Word Problem with System of Equations
-**Smaller models often skip setup and jump to a wrong number.**
-```json
-{
-  "name": "solve_problem",
-  "arguments": {
-    "prompt": "In 5 years, Alice will be twice as old as Bob was 3 years ago. Right now, Alice is 4 years older than Bob. How old is Alice now? Show every equation you set up and solve step by step.",
-    "resultSchema": {
-      "alice_age": "number",
-      "bob_age": "number",
-      "equations": "object"
-    }
-  }
-}
-```
-
-### 13. Calendar/Date Calculation
-**Requires modular arithmetic. Easy to make off-by-one errors without CoT.**
-```json
-{
-  "name": "solve_problem",
-  "arguments": {
-    "prompt": "January 1, 2024 was a Monday. Using only reasoning (no pattern matching from training data), calculate what day of the week December 25, 2024 falls on. Account for 2024 being a leap year. Show your day-counting step by step."
-  }
-}
-```
-
-### 14. Combinatorics with Overlapping Sets
-**Inclusion-exclusion principle. Smaller models often double-count.**
-```json
-{
-  "name": "solve_problem",
-  "arguments": {
-    "prompt": "In a class of 40 students: 25 play soccer, 20 play basketball, and 10 play neither. How many play both soccer and basketball? Use a Venn diagram approach and show the inclusion-exclusion formula step by step.",
-    "resultSchema": {
-      "both": "number",
-      "only_soccer": "number",
-      "only_basketball": "number",
-      "neither": "number"
-    }
-  }
-}
-```
-
-### 15. Constraint Satisfaction (Logic Grid)
-**Requires propagating constraints. Smaller models guess or lose track.**
-```json
-{
-  "name": "solve_problem",
-  "arguments": {
-    "prompt": "Four people live in a row of houses numbered 1 to 4. Clues: (1) Alice does not live in house 1 or 4. (2) Bob lives next to Charlie. (3) Diana lives in house 4. (4) Bob does not live in house 2. Who lives in each house? Show your elimination process for each clue.",
-    "resultSchema": {
-      "house_1": "string",
-      "house_2": "string",
-      "house_3": "string",
-      "house_4": "string"
-    }
-  }
-}
-```
-
-### 16. Recursive Sequence
-**Requires building the sequence step by step. Jumping to closed form often fails for smaller models.**
-```json
-{
-  "name": "solve_problem",
-  "arguments": {
-    "prompt": "A sequence starts: a(1) = 2, a(2) = 3. For n > 2, a(n) = a(n-1) * a(n-2) - a(n-1) - a(n-2). Compute a(3), a(4), a(5), a(6), and a(7). Show every substitution explicitly so I can verify each step.",
-    "resultSchema": {
-      "a3": "number",
-      "a4": "number",
-      "a5": "number",
-      "a6": "number",
-      "a7": "number"
-    }
-  }
-}
-```
-
----
-
 ## Creative & Open-ended
 
-### 17. Story Outline
+### 18. Story Outline
 ```json
 {
   "name": "solve_problem",
@@ -246,86 +277,6 @@ Here are diverse example prompts that showcase the server's capabilities.
       "acts": "object",
       "themes": "object"
     }
-  }
-}
-```
-
-### 18. Recipe Adaptation
-```json
-{
-  "name": "solve_problem",
-  "arguments": {
-    "prompt": "Adapt a classic chocolate chip cookie recipe for someone who is vegan and gluten-free",
-    "resultSchema": {
-      "name": "string",
-      "ingredients": "object",
-      "instructions": "object",
-      "yield": "number"
-    }
-  }
-}
-```
-
----
-
-## Debugging & Technical
-
-### 19. Regex Construction
-```json
-{
-  "name": "solve_problem",
-  "arguments": {
-    "prompt": "Write a regex that matches valid IPv4 addresses (e.g., 192.168.1.1)"
-  }
-}
-```
-
-### 20. SQL Query
-```json
-{
-  "name": "solve_problem",
-  "arguments": {
-    "prompt": "Write a SQL query to find the top 5 employees by salary in each department"
-  }
-}
-```
-
-### 21. Algorithm Design
-```json
-{
-  "name": "solve_problem",
-  "arguments": {
-    "prompt": "Design an algorithm to detect if a linked list has a cycle. What is the time and space complexity?"
-  }
-}
-```
-
----
-
-## Edge Cases (Stress Test Parser)
-
-### 22. Nested JSON Result
-```json
-{
-  "name": "solve_problem",
-  "arguments": {
-    "prompt": "Create a nested configuration object for a web server with database, cache, and logging settings",
-    "resultSchema": {
-      "server": "object",
-      "database": "object",
-      "cache": "object",
-      "logging": "object"
-    }
-  }
-}
-```
-
-### 23. Boolean Reasoning
-```json
-{
-  "name": "solve_problem",
-  "arguments": {
-    "prompt": "Is it possible for a statement to be both true and false at the same time in classical logic? Explain why or why not."
   }
 }
 ```
@@ -344,19 +295,9 @@ MODEL=claude-3-5-sonnet node index.js
 MODEL=gpt-4o node index.js
 ```
 
-### Gemini (no markdown)
-```bash
-MODEL=gemini-1-5-pro node index.js
-```
-
 ### LMStudio via Direct HTTP
 ```bash
 MODE=direct API_KEY=any API_BASE_URL=http://localhost:1234/v1 MODEL=local-model node index.js
-```
-
-### With Fallback Models
-```bash
-MODEL=claude-3-5-sonnet FALLBACK_MODELS=gpt-4o,gemini-1-5-pro node index.js
 ```
 
 ---
