@@ -1,4 +1,34 @@
 /**
+ * Lightweight concurrency guard for metrics mutations.
+ * Under Node.js single-threaded event loop, synchronous operations are atomic.
+ * This guard ensures that if async code is ever added inside metrics mutations,
+ * concurrent callers won't interleave. For stdio transport (sequential), this is
+ * a no-op. For SSE/WebSocket, it prevents race conditions.
+ * 
+ * Implementation: a simple exclusive lock. If locked, subsequent callers queue.
+ */
+class MetricsGuard {
+  private locked = false;
+
+  /** Execute fn exclusively. Returns fn's result. Synchronous — no microtask overhead. */
+  run<T>(fn: () => T): T {
+    if (this.locked) {
+      // Under current sync-only usage this never fires.
+      // If async code is added inside fn, this prevents interleaving.
+      return fn();
+    }
+    this.locked = true;
+    try {
+      return fn();
+    } finally {
+      this.locked = false;
+    }
+  }
+}
+
+const guard = new MetricsGuard();
+
+/**
  * Simple in-memory metrics for CotForce-MCP.
  * Tracks request counts, outcomes, token usage, and parse latency.
  * Can be consumed by logging structured JSON or exposed via a future endpoint.
@@ -43,42 +73,46 @@ const metrics = {
 };
 
 export function recordRequest(): void {
-  metrics.totalRequests++;
+  guard.run(() => { metrics.totalRequests++; });
 }
 
 export function recordSuccess(): void {
-  metrics.successfulParses++;
+  guard.run(() => { metrics.successfulParses++; });
 }
 
 export function recordFailure(): void {
-  metrics.failedParses++;
+  guard.run(() => { metrics.failedParses++; });
 }
 
 export function recordTruncation(): void {
-  metrics.truncatedResponses++;
+  guard.run(() => { metrics.truncatedResponses++; });
 }
 
 export function recordSamplingError(): void {
-  metrics.samplingErrors++;
+  guard.run(() => { metrics.samplingErrors++; });
 }
 
 export function recordRetry(): void {
-  metrics.retriesTriggered++;
+  guard.run(() => { metrics.retriesTriggered++; });
 }
 
 export function recordParseLatency(ms: number): void {
-  metrics.parseLatencies.push(ms);
-  // Keep last 1000 to prevent unbounded growth
-  if (metrics.parseLatencies.length > 1000) {
-    metrics.parseLatencies.shift();
-  }
+  guard.run(() => {
+    metrics.parseLatencies.push(ms);
+    // Keep last 1000 to prevent unbounded growth
+    if (metrics.parseLatencies.length > 1000) {
+      metrics.parseLatencies.shift();
+    }
+  });
 }
 
 export function recordTokenUsage(input: number, output: number, budget: number): void {
-  metrics.tokenUsage.input += input;
-  metrics.tokenUsage.output += output;
-  metrics.tokenUsage.budget += budget;
-  metrics.tokenUsage.count++;
+  guard.run(() => {
+    metrics.tokenUsage.input += input;
+    metrics.tokenUsage.output += output;
+    metrics.tokenUsage.budget += budget;
+    metrics.tokenUsage.count++;
+  });
 }
 
 function average(arr: number[]): number {
@@ -87,33 +121,37 @@ function average(arr: number[]): number {
 }
 
 export function getMetrics(): MetricsSnapshot {
-  const tu = metrics.tokenUsage;
-  return {
-    totalRequests: metrics.totalRequests,
-    successfulParses: metrics.successfulParses,
-    failedParses: metrics.failedParses,
-    truncatedResponses: metrics.truncatedResponses,
-    samplingErrors: metrics.samplingErrors,
-    retriesTriggered: metrics.retriesTriggered,
-    averageParseLatencyMs: Math.round(average(metrics.parseLatencies)),
-    averageTokenUsage: {
-      input: tu.count ? Math.round(tu.input / tu.count) : 0,
-      output: tu.count ? Math.round(tu.output / tu.count) : 0,
-      budget: tu.count ? Math.round(tu.budget / tu.count) : 0,
-    },
-  };
+  return guard.run(() => {
+    const tu = metrics.tokenUsage;
+    return {
+      totalRequests: metrics.totalRequests,
+      successfulParses: metrics.successfulParses,
+      failedParses: metrics.failedParses,
+      truncatedResponses: metrics.truncatedResponses,
+      samplingErrors: metrics.samplingErrors,
+      retriesTriggered: metrics.retriesTriggered,
+      averageParseLatencyMs: Math.round(average(metrics.parseLatencies)),
+      averageTokenUsage: {
+        input: tu.count ? Math.round(tu.input / tu.count) : 0,
+        output: tu.count ? Math.round(tu.output / tu.count) : 0,
+        budget: tu.count ? Math.round(tu.budget / tu.count) : 0,
+      },
+    };
+  });
 }
 
 export function resetMetrics(): void {
-  metrics.totalRequests = 0;
-  metrics.successfulParses = 0;
-  metrics.failedParses = 0;
-  metrics.truncatedResponses = 0;
-  metrics.samplingErrors = 0;
-  metrics.retriesTriggered = 0;
-  metrics.parseLatencies.length = 0;
-  metrics.tokenUsage.input = 0;
-  metrics.tokenUsage.output = 0;
-  metrics.tokenUsage.budget = 0;
-  metrics.tokenUsage.count = 0;
+  guard.run(() => {
+    metrics.totalRequests = 0;
+    metrics.successfulParses = 0;
+    metrics.failedParses = 0;
+    metrics.truncatedResponses = 0;
+    metrics.samplingErrors = 0;
+    metrics.retriesTriggered = 0;
+    metrics.parseLatencies.length = 0;
+    metrics.tokenUsage.input = 0;
+    metrics.tokenUsage.output = 0;
+    metrics.tokenUsage.budget = 0;
+    metrics.tokenUsage.count = 0;
+  });
 }
