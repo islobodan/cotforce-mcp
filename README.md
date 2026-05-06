@@ -123,6 +123,15 @@ Add to your MCP client configuration (e.g. Claude Desktop, `claude_desktop_confi
 
 If the `result` field doesn't match the schema, the server retries with a correction hint.
 
+### More Examples
+
+See [EXAMPLES.md](EXAMPLES.md) for 16 diverse examples including:
+- Logic puzzles, probability, word problems
+- Code analysis, regex, SQL queries
+- Creative writing, recipe adaptation
+- Nested JSON with schema validation
+- Usage with different models and fallbacks
+
 ### Example Response
 
 ```json
