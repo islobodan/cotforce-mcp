@@ -85,6 +85,39 @@ function formatResult(result: unknown): string {
 }
 
 // ------------------------------------------------------------------
+// 4. PROGRESS NOTIFICATIONS
+// ------------------------------------------------------------------
+type SendNotificationFn = (notification: unknown) => Promise<void>;
+
+function createProgressSender(
+  progressToken: string | number | undefined,
+  sendNotification: SendNotificationFn,
+  totalSteps: number
+) {
+  if (!progressToken) {
+    // Client didn't request progress — return no-op
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    return (_progress: number, _message: string) => Promise.resolve();
+  }
+
+  let lastSent = -1;
+  return async (progress: number, message: string) => {
+    // Only send if progress increased (debounce)
+    if (progress <= lastSent) return;
+    lastSent = progress;
+    await sendNotification({
+      method: "notifications/progress",
+      params: {
+        progressToken,
+        progress,
+        total: totalSteps,
+        message,
+      },
+    });
+  };
+}
+
+// ------------------------------------------------------------------
 // 4. SAMPLING CAPABILITY CHECK
 // ------------------------------------------------------------------
 let clientSamplingSupported = false;
@@ -366,9 +399,13 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
 // ------------------------------------------------------------------
 // 8. TOOL EXECUTION WITH CHAOS PROTOCOL
 // ------------------------------------------------------------------
-server.setRequestHandler(CallToolRequestSchema, async (request) => {
+server.setRequestHandler(CallToolRequestSchema, async (request, extra) => {
   const requestStart = Date.now();
   recordRequest();
+
+  const progressToken = (request.params as { _meta?: { progressToken?: string | number } })._meta?.progressToken;
+  const totalSteps = (parseInt(process.env.MAX_RETRIES || "2", 10) + 1) * (getFallbackModels().length + 1);
+  const notifyProgress = createProgressSender(progressToken, extra.sendNotification as SendNotificationFn, totalSteps);
 
   if (request.params.name !== "solve_problem") {
     recordFailure();
@@ -417,6 +454,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
     logger.info("Trying model", { model: currentModel ?? "host default", modelIndex });
 
     for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+      const stepNum = modelIndex * (MAX_RETRIES + 1) + attempt + 1;
       const temperature =
         attempt === 0 ? BASE_TEMP : BASE_TEMP + TEMP_INCREMENT * attempt;
       const isRetry = attempt > 0;
@@ -428,6 +466,8 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         isRetry,
         model: currentModel ?? "host default",
       });
+
+      await notifyProgress(stepNum, `Calling LLM (attempt ${attempt + 1}/${MAX_RETRIES + 1}, model: ${currentModel ?? "default"})`);
 
       try {
         const samplingResult = await sampleLLM(prompt, lastRejectionMemo, {
@@ -457,6 +497,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           });
 
           // Try to recover from truncated response first (avoids timeout on retry)
+          await notifyProgress(stepNum, "Response truncated — attempting recovery");
           const recovered = parseCoT(samplingResult.text);
           if (recovered) {
             recordSuccess();
@@ -521,6 +562,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
           recordSuccess();
           recordParseLatency(Date.now() - requestStart);
+          await notifyProgress(totalSteps, "CoT reasoning complete");
           logger.info("CoT parsed successfully", {
             reasonLength: parsed.reasoning.length,
             model: currentModel ?? "host default",
@@ -572,6 +614,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
     modelIndex++;
     if (modelIndex < models.length) {
       const nextModel = models[modelIndex] ?? "host default";
+      await notifyProgress(modelIndex * (MAX_RETRIES + 1), `Switching to fallback model: ${nextModel}`);
       logger.info("Switching to fallback model", {
         from: currentModel ?? "host default",
         to: nextModel,
