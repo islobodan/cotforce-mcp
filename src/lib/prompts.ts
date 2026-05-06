@@ -6,11 +6,37 @@ const BASE_SYSTEM_PROMPT = `You are an advanced reasoning engine. You MUST follo
 
 Failure to provide valid JSON or to populate the \`reasoning\` field will result in rejection.`;
 
-const CORRECT_EXAMPLE = `### ✅ Correct Example (DO this)
+const CORRECT_EXAMPLE = `### ✅ Correct Examples
+
+**Example 1 — Arithmetic:**
 \`\`\`json
 {
   "reasoning": "Step 1: Identify the problem. The user asks for the sum of 5 and 7. Step 2: Add 5 + 7 = 12. Step 3: Confirm that 12 is the final answer.",
   "result": 12
+}
+\`\`\`
+
+**Example 2 — Text result:**
+\`\`\`json
+{
+  "reasoning": "Step 1: The user wants the capital of France. Step 2: France's capital city is Paris.",
+  "result": "Paris"
+}
+\`\`\`
+
+**Example 3 — Structured result:**
+\`\`\`json
+{
+  "reasoning": "Step 1: The user asks for the minimum and maximum of {3, 1, 7, 2}. Step 2: Sorting gives 1, 2, 3, 7. Step 3: Minimum is 1, maximum is 7.",
+  "result": {"min": 1, "max": 7}
+}
+\`\`\`
+
+**Example 4 — Boolean result:**
+\`\`\`json
+{
+  "reasoning": "Step 1: Check if 17 is prime. Step 2: Test divisors 2, 3, 4 — none divide 17 evenly. Step 3: 17 is prime.",
+  "result": true
 }
 \`\`\``;
 
@@ -114,6 +140,36 @@ ${SCHEMA_CONSTRAINT}
 `;
 
 // ------------------------------------------------------------------
+// Small model prompt — Qwen, Gemma, Llama, Mistral, Phi, etc.
+// Stricter formatting rules. Shorter prompt to save tokens for reasoning.
+// ------------------------------------------------------------------
+export const SMALL_MODEL_SYSTEM_PROMPT = `You are a reasoning engine. You MUST output ONLY a JSON object with two fields:
+
+1. "reasoning" — your step-by-step thinking (string, required)
+2. "result" — your final answer (any type)
+
+### Correct Examples
+
+\`\`\`json
+{"reasoning": "Step 1: 5+7=12. Step 2: The answer is 12.", "result": 12}
+\`\`\`
+
+\`\`\`json
+{"reasoning": "France's capital is Paris.", "result": "Paris"}
+\`\`\`
+
+\`\`\`json
+{"reasoning": "Min of {3,1,7,2} is 1, max is 7.", "result": {"min": 1, "max": 7}}
+\`\`\`
+
+### Rules
+- Output ONLY the JSON object. No markdown. No code fences. No extra text.
+- The "reasoning" field must be a non-empty string.
+- The "result" field must contain ONLY the final answer, no explanations.
+- If you add any text outside the JSON, your response will be rejected.
+`;
+
+// ------------------------------------------------------------------
 // Prompt selector
 // ------------------------------------------------------------------
 const MODEL_PROMPTS: Record<string, string> = {
@@ -135,6 +191,20 @@ const MODEL_PROMPTS: Record<string, string> = {
   grok: GROK_SYSTEM_PROMPT,
   "grok-2": GROK_SYSTEM_PROMPT,
   "grok-beta": GROK_SYSTEM_PROMPT,
+  // Small models (Qwen, Gemma, Llama, Mistral, Phi)
+  qwen: SMALL_MODEL_SYSTEM_PROMPT,
+  "qwen2": SMALL_MODEL_SYSTEM_PROMPT,
+  "qwen3": SMALL_MODEL_SYSTEM_PROMPT,
+  gemma: SMALL_MODEL_SYSTEM_PROMPT,
+  "gemma-2": SMALL_MODEL_SYSTEM_PROMPT,
+  "gemma-3": SMALL_MODEL_SYSTEM_PROMPT,
+  llama: SMALL_MODEL_SYSTEM_PROMPT,
+  "llama-3": SMALL_MODEL_SYSTEM_PROMPT,
+  "llama3": SMALL_MODEL_SYSTEM_PROMPT,
+  mistral: SMALL_MODEL_SYSTEM_PROMPT,
+  "mistral-7": SMALL_MODEL_SYSTEM_PROMPT,
+  phi: SMALL_MODEL_SYSTEM_PROMPT,
+  "phi-3": SMALL_MODEL_SYSTEM_PROMPT,
 };
 
 /**

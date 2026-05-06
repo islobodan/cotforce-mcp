@@ -5,6 +5,7 @@ import {
   GPT4_SYSTEM_PROMPT,
   GEMINI_SYSTEM_PROMPT,
   GROK_SYSTEM_PROMPT,
+  SMALL_MODEL_SYSTEM_PROMPT,
 } from "../src/lib/prompts.js";
 
 describe("getSystemPrompt", () => {
@@ -68,7 +69,7 @@ describe("getSystemPrompt", () => {
     });
   });
 
-  it("all prompts contain correct/incorrect examples", () => {
+  it("all prompts contain correct/incorrect examples or rules", () => {
     const prompts = [
       AGENTIC_SYSTEM_PROMPT,
       CLAUDE_SYSTEM_PROMPT,
@@ -77,8 +78,43 @@ describe("getSystemPrompt", () => {
       GROK_SYSTEM_PROMPT,
     ];
     prompts.forEach((prompt) => {
-      expect(prompt).toContain("✅ Correct Example");
-      expect(prompt).toContain("❌ Incorrect Example");
+      expect(prompt).toContain("✅ Correct");
+      expect(prompt).toContain("❌ Incorrect");
     });
+    expect(SMALL_MODEL_SYSTEM_PROMPT).toContain("Correct Examples");
+    expect(SMALL_MODEL_SYSTEM_PROMPT).toContain("Rules");
+  });
+
+  it("selects small model prompt for Qwen, Gemma, Llama, Mistral, Phi", () => {
+    expect(getSystemPrompt("qwen")).toBe(SMALL_MODEL_SYSTEM_PROMPT);
+    expect(getSystemPrompt("qwen3")).toBe(SMALL_MODEL_SYSTEM_PROMPT);
+    expect(getSystemPrompt("gemma")).toBe(SMALL_MODEL_SYSTEM_PROMPT);
+    expect(getSystemPrompt("gemma-2")).toBe(SMALL_MODEL_SYSTEM_PROMPT);
+    expect(getSystemPrompt("llama")).toBe(SMALL_MODEL_SYSTEM_PROMPT);
+    expect(getSystemPrompt("llama3")).toBe(SMALL_MODEL_SYSTEM_PROMPT);
+    expect(getSystemPrompt("mistral")).toBe(SMALL_MODEL_SYSTEM_PROMPT);
+    expect(getSystemPrompt("phi")).toBe(SMALL_MODEL_SYSTEM_PROMPT);
+    expect(getSystemPrompt("phi-3")).toBe(SMALL_MODEL_SYSTEM_PROMPT);
+  });
+
+  it("all prompts include diverse result types in examples", () => {
+    const prompts = [
+      AGENTIC_SYSTEM_PROMPT,
+      CLAUDE_SYSTEM_PROMPT,
+      GPT4_SYSTEM_PROMPT,
+      GEMINI_SYSTEM_PROMPT,
+      GROK_SYSTEM_PROMPT,
+    ];
+    // Check that prompts show number, string, object, and boolean results
+    prompts.forEach((prompt) => {
+      expect(prompt).toMatch(/"result":\s*12/);        // number
+      expect(prompt).toMatch(/"result":\s*"Paris"/);  // string
+      expect(prompt).toMatch(/"result":\s*{/);        // object
+      expect(prompt).toMatch(/"result":\s*true/);     // boolean
+    });
+    // Small model prompt shows number, string, and object
+    expect(SMALL_MODEL_SYSTEM_PROMPT).toMatch(/"result":\s*12/);
+    expect(SMALL_MODEL_SYSTEM_PROMPT).toMatch(/"result":\s*"Paris"/);
+    expect(SMALL_MODEL_SYSTEM_PROMPT).toMatch(/"result":\s*{/);
   });
 });
