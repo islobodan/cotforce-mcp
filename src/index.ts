@@ -446,79 +446,50 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
         if (samplingResult.truncated) {
           recordTruncation();
-          const budgetMultiplier = 1.5;
-          const newBudget = Math.ceil(samplingResult.tokenCount.budget * budgetMultiplier);
+          logger.warn("Truncation detected", {
+            attempt,
+            finishReason: samplingResult.finishReason,
+            outputTokens: samplingResult.tokenCount.output,
+            budget: samplingResult.tokenCount.budget,
+            model: currentModel ?? "host default",
+          });
+
+          // Try to recover from truncated response first (avoids timeout on retry)
+          const recovered = parseCoT(samplingResult.text);
+          if (recovered) {
+            recordSuccess();
+            recordParseLatency(Date.now() - requestStart);
+            logger.info("Recovered CoT from truncated response", {
+              reasonLength: recovered.reasoning.length,
+              model: currentModel ?? "host default",
+            });
+            const tokenMeta = lastTokenCount
+              ? `\n\n📊 Token Usage: ${lastTokenCount.input} in / ${lastTokenCount.output} out / ${lastTokenCount.budget} budget`
+              : "";
+            const modelMeta = models.length > 1 ? `\n🔄 Model used: ${currentModel ?? "host default"}` : "";
+            return {
+              content: [
+                {
+                  type: "text",
+                  text:
+                    `🤖 Agentic CoT Result:\n\n**Reasoning:** ${formatResult(recovered.reasoning)}\n\n**Answer:** ${formatResult(recovered.result)}` +
+                    tokenMeta +
+                    modelMeta,
+                },
+              ],
+            };
+          }
+
+          // Recovery failed — retry with increased budget and conciseness hint
+          const newBudget = Math.ceil(samplingResult.tokenCount.budget * 1.5);
           lastRejectionMemo =
             `[TRUNCATED] Your previous response hit the token limit (${samplingResult.tokenCount.output}/${samplingResult.tokenCount.budget} tokens). ` +
-            "Be more concise in your reasoning — skip repetitive analysis and go straight to the key deductions.\n\n" +
+            "Be more concise — skip repetitive analysis and go straight to the key deductions.\n\n" +
             samplingResult.text.slice(0, 300);
-          logger.warn("Truncation detected, retrying with increased budget", {
+          logger.warn("Recovery failed, retrying with increased budget", {
             attempt,
             oldBudget: samplingResult.tokenCount.budget,
             newBudget,
-            model: currentModel ?? "host default",
-          });
-          // Retry immediately with increased budget
-          const retryResult = await sampleLLM(prompt, lastRejectionMemo, {
-            temperature,
-            isRetry: true,
-            budgetOverride: newBudget,
-            modelOverride: currentModel,
-          });
-          lastRaw = retryResult.text;
-          lastTokenCount = retryResult.tokenCount;
-          recordTokenUsage(
-            retryResult.tokenCount.input,
-            retryResult.tokenCount.output,
-            retryResult.tokenCount.budget
-          );
-          // If still truncated after budget increase, accept and try to parse
-          if (!retryResult.truncated) {
-            const parsed = parseCoT(retryResult.text);
-            if (parsed) {
-              if (parseArgs.data.resultSchema) {
-                const schemaValidation = validateResultSchema(
-                  parsed.result,
-                  parseArgs.data.resultSchema
-                );
-                if (!schemaValidation.valid) {
-                  lastRejectionMemo =
-                    `[SCHEMA MISMATCH] The result field did not match the required schema. ` +
-                    `Errors: ${schemaValidation.error}`;
-                  logger.warn("Result schema validation failed", {
-                    attempt,
-                    error: schemaValidation.error,
-                  });
-                  if (attempt === MAX_RETRIES) break;
-                  continue;
-                }
-              }
-              recordSuccess();
-              recordParseLatency(Date.now() - requestStart);
-              logger.info("CoT parsed successfully after budget increase", {
-                reasonLength: parsed.reasoning.length,
-                model: currentModel ?? "host default",
-              });
-              const tokenMeta = lastTokenCount
-                ? `\n\n📊 Token Usage: ${lastTokenCount.input} in / ${lastTokenCount.output} out / ${lastTokenCount.budget} budget`
-                : "";
-              const modelMeta = models.length > 1 ? `\n🔄 Model used: ${currentModel ?? "host default"}` : "";
-              return {
-                content: [
-                  {
-                    type: "text",
-                    text:
-                      `🤖 Agentic CoT Result:\n\n**Reasoning:** ${formatResult(parsed.reasoning)}\n\n**Answer:** ${formatResult(parsed.result)}` +
-                      tokenMeta +
-                      modelMeta,
-                  },
-                ],
-              };
-            }
-          }
-          // Retry with increased budget still failed — try parse what we have
-          logger.warn("Retry with increased budget still truncated or unparseable", {
-            attempt,
             model: currentModel ?? "host default",
           });
           if (attempt === MAX_RETRIES) break;

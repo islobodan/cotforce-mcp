@@ -202,6 +202,63 @@ describe("parseCoT - Realistic LLM outputs", () => {
   });
 });
 
+describe("parseCoT - Layer 5: Truncated JSON recovery", () => {
+  it("recovers reasoning from truncated JSON (no result field)", () => {
+    const input = '{"reasoning": "Step 1: I analyzed the problem. Step 2: I found the answer."';
+    const result = parseCoT(input);
+    expect(result).not.toBeNull();
+    expect(result!.reasoning).toContain("Step 1");
+    expect(result!.result).toBeNull();
+  });
+
+  it("recovers reasoning when reasoning string itself is truncated", () => {
+    const input = '{"reasoning": "Step 1: I analyzed the problem. Step 2: I was thinking about';
+    const result = parseCoT(input);
+    expect(result).not.toBeNull();
+    expect(result!.reasoning).toContain("Step 1");
+    expect(result!.reasoning).toContain("[Response truncated]");
+    expect(result!.result).toBeNull();
+  });
+
+  it("recovers reasoning and partial string result", () => {
+    const input = '{"reasoning": "I solved it", "result": "the answer is';
+    const result = parseCoT(input);
+    expect(result).not.toBeNull();
+    expect(result!.reasoning).toBe("I solved it");
+    expect(result!.result).toBe("the answer is");
+  });
+
+  it("recovers reasoning with number result", () => {
+    const input = '{"reasoning": "I computed it", "result": 42';
+    const result = parseCoT(input);
+    expect(result).not.toBeNull();
+    expect(result!.reasoning).toBe("I computed it");
+    expect(result!.result).toBe(42);
+  });
+
+  it("recovers reasoning when result object is truncated", () => {
+    const input = '{"reasoning": "I built the object", "result": {"SEND": 9567, "MORE": 1085';
+    const result = parseCoT(input);
+    expect(result).not.toBeNull();
+    expect(result!.reasoning).toBe("I built the object");
+    expect(result!.result).toBeNull(); // can't parse incomplete object
+  });
+
+  it("does not recover non-truncated valid JSON", () => {
+    // This should be handled by Layer 1, not Layer 5
+    const input = '{"reasoning": "step"}';
+    expect(parseCoT(input)).toBeNull();
+  });
+
+  it("recovers from realistic truncated SEND+MORE response", () => {
+    const input = '{"reasoning": "Step 1: M must be 1. Step 2: O must be 0. Step 3: S=9, R=8, E=5, N=6, D=7, Y=2."';
+    const result = parseCoT(input);
+    expect(result).not.toBeNull();
+    expect(result!.reasoning).toContain("M must be 1");
+    expect(result!.result).toBeNull();
+  });
+});
+
 describe("AgenticCotSchema", () => {
   it("validates correct structure", () => {
     const result = AgenticCotSchema.safeParse({
