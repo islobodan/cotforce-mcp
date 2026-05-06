@@ -1,5 +1,16 @@
 import { z } from "zod";
 
+/**
+ * Debug logging for parser — only emits when LOG_LEVEL=DEBUG.
+ * Uses console.error to stay consistent with the app's logging output.
+ */
+function parserDebug(msg: string, snippet?: string): void {
+  if (process.env.LOG_LEVEL?.toUpperCase() === "DEBUG") {
+    const snip = snippet ? `: ${snippet.slice(0, 80).replace(/\n/g, " ")}` : "";
+    console.error(`[PARSER_DEBUG] ${msg}${snip}`);
+  }
+}
+
 export const AgenticCotSchema = z.object({
   reasoning: z
     .string()
@@ -215,7 +226,7 @@ export function parseCoT(raw: string): AgenticCot | null {
       const validated = AgenticCotSchema.safeParse(parsed);
       if (validated.success) return validated.data;
     } catch {
-      /* ignore */
+      parserDebug("Layer 2: JSON.parse failed on fenced block", blockMatch[1]);
     }
   }
 
@@ -243,7 +254,7 @@ export function parseCoT(raw: string): AgenticCot | null {
       const validated = AgenticCotSchema.safeParse(parsed);
       if (validated.success) return validated.data;
     } catch {
-      /* ignore */
+      parserDebug("Layer 4: JSON.parse failed on brace-balanced candidate", jsonCandidate);
     }
   }
 
