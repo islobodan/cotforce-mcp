@@ -69,7 +69,7 @@ The server is configured via environment variables (all optional):
 ### Example
 
 ```bash
-MODEL=gpt-4o MAX_RETRIES=3 BASE_TEMP=0.2 TEMP_INCREMENT=0.15 LOG_LEVEL=DEBUG npx cotforce-mcp
+MODEL=gpt-4o MAX_RETRIES=3 BASE_TEMP=0.2 TEMP_INCREMENT=0.15 LOG_LEVEL=DEBUG npx @slbdn/cotforce-mcp
 ```
 
 ---

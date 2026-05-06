@@ -1,5 +1,5 @@
 {
-  "name": "cotforce-mcp",
+  "name": "@slbdn/cotforce-mcp",
   "version": "1.0.0",
   "description": "Strict Chain‑of‑Thought Enforcement MCP Server – forces LLMs to produce structured CoT outputs with adaptive parsing, retry logic, token budgeting, and configurable model.",
   "main": "index.js",
@@ -25,13 +25,18 @@
     "structured-output",
     "model-context-protocol",
     "enforcement",
-    "adapative-parsing"
+    "adaptive-parsing",
+    "reasoning",
+    "openai",
+    "lmstudio",
+    "ollama",
+    "tiktoken"
   ],
   "author": "Slobodan Ivkovic",
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/islobodan/cotforce-mcp"
+    "url": "git+https://github.com/islobodan/cotforce-mcp.git"
   },
   "engines": {
     "node": ">=18"
@@ -54,6 +59,7 @@
     "dist",
     "README.md",
     "LICENSE",
+    "CHANGELOG.md",
     "EXAMPLES.md",
     "examples"
   ]
