@@ -118,7 +118,7 @@ function createProgressSender(
 }
 
 // ------------------------------------------------------------------
-// 4. SAMPLING CAPABILITY CHECK
+// 5. SAMPLING CAPABILITY CHECK
 // ------------------------------------------------------------------
 let clientSamplingSupported = false;
 
@@ -142,7 +142,7 @@ function assertSamplingSupported(): void {
 }
 
 // ------------------------------------------------------------------
-// 5. RESULT SCHEMA VALIDATION
+// 6. RESULT SCHEMA VALIDATION
 // ------------------------------------------------------------------
 export function validateResultSchema(
   result: unknown,
@@ -179,7 +179,7 @@ export function validateResultSchema(
 }
 
 // ------------------------------------------------------------------
-// 4. SERVER INITIALIZATION
+// 7. SERVER INITIALIZATION
 // ------------------------------------------------------------------
 const server = new Server(
   { name: "cotforce-mcp", version: "1.0.0" },
@@ -187,7 +187,7 @@ const server = new Server(
 );
 
 // ------------------------------------------------------------------
-// 6. LLM SAMPLING FUNCTION (with retry logic, model env, temp_increment)
+// 8. LLM SAMPLING FUNCTION (with retry logic, model env, temp_increment)
 // ------------------------------------------------------------------
 interface SamplingResult {
   text: string;
@@ -370,7 +370,7 @@ async function sampleLLM(
 }
 
 // ------------------------------------------------------------------
-// 7. TOOL REGISTRATION
+// 9. TOOL REGISTRATION
 // ------------------------------------------------------------------
 server.setRequestHandler(ListToolsRequestSchema, async () => ({
   tools: [
@@ -397,7 +397,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
 }));
 
 // ------------------------------------------------------------------
-// 8. TOOL EXECUTION WITH CHAOS PROTOCOL
+// 10. TOOL EXECUTION WITH CHAOS PROTOCOL
 // ------------------------------------------------------------------
 server.setRequestHandler(CallToolRequestSchema, async (request, extra) => {
   const requestStart = Date.now();
@@ -649,7 +649,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request, extra) => {
 });
 
 // ------------------------------------------------------------------
-// 9. START
+// 11. START
 // ------------------------------------------------------------------
 async function main(): Promise<void> {
   const transport = new StdioServerTransport();
