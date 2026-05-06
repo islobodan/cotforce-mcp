@@ -32,7 +32,7 @@ export function computeTokenBudget(
 ): number {
   const totalInput = systemPrompt + "\n" + prompt;
   const inputTokens = countTokens(totalInput);
-  const overhead = opts?.overhead ?? 650;
+  const overhead = opts?.overhead ?? parseInt(process.env.REASONING_OVERHEAD || "650", 10);
   const recommended = overhead + inputTokens * 2;
   const min = opts?.min ?? 1024;
   const max = opts?.max ?? 4096;

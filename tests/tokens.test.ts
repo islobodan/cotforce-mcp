@@ -82,6 +82,17 @@ describe("computeTokenBudget", () => {
     const budget = computeTokenBudget("test", "system");
     expect(Number.isInteger(budget)).toBe(true);
   });
+
+  it("respects REASONING_OVERHEAD env var", () => {
+    const original = process.env.REASONING_OVERHEAD;
+    process.env.REASONING_OVERHEAD = "1000";
+    const prompt = "Lorem ipsum dolor sit amet, consectetur adipiscing elit. ".repeat(50);
+    const withHighOverhead = computeTokenBudget(prompt, "system");
+    delete process.env.REASONING_OVERHEAD;
+    const withDefault = computeTokenBudget(prompt, "system");
+    if (original !== undefined) process.env.REASONING_OVERHEAD = original;
+    expect(withHighOverhead).toBeGreaterThan(withDefault);
+  });
 });
 
 describe("getEncodingSafe", () => {
