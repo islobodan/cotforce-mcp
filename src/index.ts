@@ -32,6 +32,7 @@ import {
   recordTruncation,
 } from "./lib/metrics.js";
 import { callDirectLLM, isDirectModeConfigured } from "./lib/llm.js";
+import { createResultCache, buildCacheKey } from "./lib/cache.js";
 
 // ------------------------------------------------------------------
 // 1. LOGGING (Structured, with levels)
@@ -414,6 +415,10 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
 // ------------------------------------------------------------------
 // 11. TOOL EXECUTION WITH CHAOS PROTOCOL
 // ------------------------------------------------------------------
+
+// Result cache — shared across requests
+const resultCache = createResultCache();
+
 server.setRequestHandler(CallToolRequestSchema, async (request, extra) => {
   const requestStart = Date.now();
   recordRequest();
@@ -443,6 +448,26 @@ server.setRequestHandler(CallToolRequestSchema, async (request, extra) => {
   assertSamplingSupported();
 
   const { prompt } = parseArgs.data;
+  const resultSchema = parseArgs.data.resultSchema;
+
+  // Check cache before hitting the LLM
+  const cacheKey = buildCacheKey(prompt, resultSchema);
+  const cached = resultCache.get(cacheKey);
+  if (cached) {
+    recordSuccess();
+    logger.info("Cache hit", { keyLength: cacheKey.length });
+    const tokenMeta = `\n\n📊 Token Usage: (cached)`;
+    return {
+      content: [
+        {
+          type: "text",
+          text:
+            `🤖 Agentic CoT Result:\n\n**Reasoning:** ${formatResult(cached.reasoning)}\n\n**Answer:** ${formatResult(cached.result)}` +
+            tokenMeta,
+        },
+      ],
+    };
+  }
 
   const BASE_TEMP = parseFloat(process.env.BASE_TEMP || "0.1");
   const TEMP_INCREMENT = parseFloat(process.env.TEMP_INCREMENT || "0.2");
@@ -516,6 +541,12 @@ server.setRequestHandler(CallToolRequestSchema, async (request, extra) => {
           if (recovered) {
             recordSuccess();
             recordParseLatency(Date.now() - requestStart);
+            // Cache the recovered result too
+            resultCache.set(cacheKey, {
+              reasoning: recovered.reasoning,
+              result: recovered.result,
+              cachedAt: Date.now(),
+            });
             logger.info("Recovered CoT from truncated response", {
               reasonLength: recovered.reasoning.length,
               model: currentModel ?? "host default",
@@ -576,6 +607,12 @@ server.setRequestHandler(CallToolRequestSchema, async (request, extra) => {
 
           recordSuccess();
           recordParseLatency(Date.now() - requestStart);
+          // Store in cache for future identical requests
+          resultCache.set(cacheKey, {
+            reasoning: parsed.reasoning,
+            result: parsed.result,
+            cachedAt: Date.now(),
+          });
           await notifyProgress(totalSteps, "CoT reasoning complete");
           logger.info("CoT parsed successfully", {
             reasonLength: parsed.reasoning.length,

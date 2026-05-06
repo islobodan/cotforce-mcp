@@ -58,6 +58,8 @@ The server is configured via environment variables (all optional):
 | `BASE_TEMP` | `0.1` | Initial sampling temperature. |
 | `TEMP_INCREMENT` | `0.2` | Temperature added per retry attempt. |
 | `TIMEOUT` | `60000` | Sampling timeout in ms. |
+| `CACHE_TTL` | `3600000` | Result cache TTL in ms (default 1 hour). Set to `0` to disable. |
+| `CACHE_MAX_ENTRIES` | `100` | Maximum cached results before evicting oldest. |
 | `TRUNCATION_THRESHOLD` | `0.95` | Ratio of output/budget that triggers truncation detection. Attempts truncated JSON recovery first, then retries with 1.5x budget. |
 | `REASONING_OVERHEAD` | `800` | Fixed token overhead added to the budget formula. Increase for verbose models. |
 | `FALLBACK_MODELS` | *(not set)* | Comma-separated list of fallback models (e.g. `gpt-4o,claude-3-5-sonnet`). Cycled on failure. |
@@ -213,6 +215,7 @@ cotforce-mcp/
 │       ├── metrics.ts     # In-memory request/performance counters
 │       └── llm.ts         # Direct HTTP LLM client (OpenAI-compatible)
 ├── tests/
+│   ├── cache.test.ts      # 10 unit tests for result caching
 │   ├── parser.test.ts     # 47 unit tests for parser layers
 │   ├── tokens.test.ts     # 23 unit tests for token budgeting
 │   ├── schema.test.ts     # 8 unit tests for result schema validation
@@ -257,7 +260,7 @@ npm run typecheck  # type-check src/ and tests/
 | `npm run build` | Compile TypeScript (`src/` → `dist/`) |
 | `npm run dev` | Watch mode compilation |
 | `npm run typecheck` | TypeScript type-checking for source and tests |
-| `npm test` | Run full Jest test suite (123 tests) |
+| `npm test` | Run full Jest test suite (133 tests) |
 | `npm run test:smoke` | Quick smoke test via `mcp-tester` CLI |
 | `npm run test:tools` | List available tools via `mcp-tester` CLI |
 

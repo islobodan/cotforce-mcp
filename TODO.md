@@ -127,8 +127,8 @@ Based on the honest value review, here are actionable improvements, organized by
 - [ ] **Plug‑in architecture for parsers**  
   Allow users to write custom parser modules (e.g., YAML, CSV) without modifying core code.
 
-- [ ] **Tool‑specific CoT caching**  
-  Cache successful CoT results for identical prompts (with TTL) to reduce LLM calls for repeated tasks.
+- [x] **Tool‑specific CoT caching**  
+  ✅ `src/lib/cache.ts`: TTL-based cache with configurable `CACHE_TTL` (default 1h) and `CACHE_MAX_ENTRIES` (default 100). Cache key includes prompt + optional resultSchema. Periodic cleanup every 30s. 10 tests.
 
 ---
 
