@@ -315,7 +315,9 @@ async function sampleLLM(
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       logger.error("Direct LLM call failed", { error: message });
-      throw new McpError(ErrorCode.InternalError, `Direct LLM call failed: ${message}`);
+      const mcpErr = new McpError(ErrorCode.InternalError, `Direct LLM call failed: ${message}`);
+      if (error instanceof Error) mcpErr.cause = error;
+      throw mcpErr;
     }
   }
 
@@ -375,7 +377,9 @@ async function sampleLLM(
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     logger.error("Sampling failed", { error: message });
-    throw new McpError(ErrorCode.InternalError, `Sampling failed: ${message}`);
+    const mcpErr = new McpError(ErrorCode.InternalError, `Sampling failed: ${message}`);
+    if (error instanceof Error) mcpErr.cause = error;
+    throw mcpErr;
   }
 }
 
