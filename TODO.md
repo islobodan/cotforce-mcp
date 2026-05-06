@@ -24,8 +24,8 @@ Based on the honest value review, here are actionable improvements, organized by
 - [ ] **Implement true streaming**  
   Replace the `stream: true` flag with actual token‑by‑token emission using SSE or WebSocket transport. The current `server.request` does not support streaming; use lower‑level transport or MCP notifications to push partial CoT text.
 
-- [ ] **Add output truncation detection**  
-  After receiving a response, compare its actual token count against `maxTokens`. If it’s suspiciously close (e.g., >95% of budget), log a warning and optionally retry with a higher budget. This prevents silent data loss.
+- [x] **Add output truncation detection**  
+  ✅ `TRUNCATION_THRESHOLD` env var (default 0.95). Detects when output/budget ratio exceeds threshold, logs warning, injects conciseness hint into rejection memo, and retries.
 
 - [ ] **Integrate structured monitoring/metrics**  
   Expose counters (total requests, success/retry/failure rates, average token usage, parse latency) via a `/metrics` endpoint or log structured JSON that can be consumed by tools like Prometheus or Datadog.
@@ -53,8 +53,8 @@ Based on the honest value review, here are actionable improvements, organized by
 - [ ] **Retry with different model**  
   On failure, try alternative models (e.g., from a comma‑separated `FALLBACK_MODELS` env list). Useful if one model refuses to output JSON but another complies.
 
-- [ ] **Expose raw token usage in response**  
-  Return `{ reasoning, result, tokenCount: { input, output, budget } }` to help callers optimize their usage.
+- [x] **Expose raw token usage in response**  
+  ✅ Appended to response text: `📊 Token Usage: X in / Y out / Z budget`. Available on both success and fallback responses.
 
 - [ ] **Add rate limiting / concurrency control**  
   Prevent overloading the LLM with concurrent requests. Use a simple semaphore or queue.

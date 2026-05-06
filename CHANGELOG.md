@@ -8,6 +8,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Output truncation detection** — `isTruncated()` in `src/lib/tokens.ts` with configurable `TRUNCATION_THRESHOLD` env var (default 0.95). Detects when LLM responses hit the token budget and retries with a conciseness hint.
+- **Token usage exposure** — `sampleLLM` now tracks input/output/budget token counts. Successful and fallback responses include `📊 Token Usage: X in / Y out / Z budget`.
 - Comprehensive test suite: 65+ tests across parser, tokens, and server integration
 - Extracted library modules: `src/lib/parser.ts`, `src/lib/tokens.ts`, `src/lib/prompts.ts`
 - `@slbdn/mcp-tester` integration for MCP server testing

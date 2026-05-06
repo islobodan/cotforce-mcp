@@ -22,6 +22,8 @@
 - **Token budgeting with tiktoken** — accurate token counting using OpenAI's `cl100k_base` encoding, with fallback to character heuristic.
 - **Configurable model** — set `MODEL` environment variable to hint a specific model; leave unset for host default.
 - **Structured logging** — timestamped, level‑filtered logs to stderr (supports `LOG_LEVEL`).
+- **Output truncation detection** — detects when the LLM response hits the token limit and retries with a conciseness hint (`TRUNCATION_THRESHOLD`).
+- **Token usage exposure** — every response includes input / output / budget token counts so callers can optimize.
 - **Comprehensive test suite** — 65+ tests covering parser layers, token budgeting, and MCP server integration via `@slbdn/mcp-tester`.
 
 ---
@@ -52,6 +54,7 @@ The server is configured via environment variables (all optional):
 | `BASE_TEMP` | `0.1` | Initial sampling temperature. |
 | `TEMP_INCREMENT` | `0.2` | Temperature added per retry attempt. |
 | `TIMEOUT` | `30000` | Sampling timeout in ms. |
+| `TRUNCATION_THRESHOLD` | `0.95` | Ratio of output/budget that triggers truncation warning and conciseness retry. |
 | `LOG_LEVEL` | `INFO` | One of `DEBUG`, `INFO`, `WARN`, `ERROR`. |
 
 ### Example
@@ -102,7 +105,7 @@ Add to your MCP client configuration (e.g. Claude Desktop, `claude_desktop_confi
 {
   "content": [{
     "type": "text",
-    "text": "🤖 Agentic CoT Result:\n\n**Reasoning:** Step 1: Multiply 7 * 8 = 56. Step 2: Add 2 to get 58.\n\n**Answer:** 58"
+    "text": "🤖 Agentic CoT Result:\n\n**Reasoning:** Step 1: Multiply 7 * 8 = 56. Step 2: Add 2 to get 58.\n\n**Answer:** 58\n\n📊 Token Usage: 42 in / 150 out / 1024 budget"
   }]
 }
 ```
