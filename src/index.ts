@@ -64,10 +64,50 @@ const logger = {
 // ------------------------------------------------------------------
 const SolveProblemArgsSchema = z.object({
   prompt: z.string().min(1, "prompt must not be empty"),
+  resultSchema: z.record(z.any()).optional().describe(
+    "Optional JSON schema to validate the result field against"
+  ),
 });
 
 // ------------------------------------------------------------------
-// 3. SERVER INITIALIZATION
+// 3. RESULT SCHEMA VALIDATION
+// ------------------------------------------------------------------
+export function validateResultSchema(
+  result: unknown,
+  schema: Record<string, unknown>
+): { valid: boolean; error?: string } {
+  if (typeof result !== "object" || result === null || Array.isArray(result)) {
+    return { valid: false, error: "Result must be an object" };
+  }
+
+  const obj = result as Record<string, unknown>;
+  for (const [key, expected] of Object.entries(schema)) {
+    if (!(key in obj)) {
+      return { valid: false, error: `Missing required key: "${key}"` };
+    }
+    if (typeof expected === "string") {
+      // Simple type check: { "count": "number", "name": "string" }
+      const actualType = typeof obj[key];
+      if (actualType !== expected) {
+        return {
+          valid: false,
+          error: `Key "${key}" expected type "${expected}", got "${actualType}"`,
+        };
+      }
+    } else if (expected && typeof expected === "object") {
+      // Nested object validation
+      const nested = validateResultSchema(obj[key], expected as Record<string, unknown>);
+      if (!nested.valid) {
+        return { valid: false, error: `Key "${key}": ${nested.error}` };
+      }
+    }
+  }
+
+  return { valid: true };
+}
+
+// ------------------------------------------------------------------
+// 4. SERVER INITIALIZATION
 // ------------------------------------------------------------------
 const server = new Server(
   { name: "cotforce-mcp", version: "1.0.0" },
@@ -75,7 +115,7 @@ const server = new Server(
 );
 
 // ------------------------------------------------------------------
-// 4. LLM SAMPLING FUNCTION (with retry logic, model env, temp_increment)
+// 5. LLM SAMPLING FUNCTION (with retry logic, model env, temp_increment)
 // ------------------------------------------------------------------
 interface SamplingResult {
   text: string;
@@ -183,7 +223,7 @@ async function sampleLLM(
 }
 
 // ------------------------------------------------------------------
-// 5. TOOL REGISTRATION
+// 6. TOOL REGISTRATION
 // ------------------------------------------------------------------
 server.setRequestHandler(ListToolsRequestSchema, async () => ({
   tools: [
@@ -198,6 +238,10 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
             type: "string",
             description: "The problem to solve.",
           },
+          resultSchema: {
+            type: "object",
+            description: "Optional JSON schema to validate the result field against.",
+          },
         },
         required: ["prompt"],
       },
@@ -206,7 +250,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
 }));
 
 // ------------------------------------------------------------------
-// 6. TOOL EXECUTION WITH CHAOS PROTOCOL
+// 7. TOOL EXECUTION WITH CHAOS PROTOCOL
 // ------------------------------------------------------------------
 server.setRequestHandler(CallToolRequestSchema, async (request) => {
   const requestStart = Date.now();
@@ -273,6 +317,25 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
       const parsed = parseCoT(samplingResult.text);
       if (parsed) {
+        // Validate against user-supplied result schema if provided
+        if (parseArgs.data.resultSchema) {
+          const schemaValidation = validateResultSchema(
+            parsed.result,
+            parseArgs.data.resultSchema
+          );
+          if (!schemaValidation.valid) {
+            lastRejectionMemo =
+              `[SCHEMA MISMATCH] The result field did not match the required schema. ` +
+              `Errors: ${schemaValidation.error}`;
+            logger.warn("Result schema validation failed", {
+              attempt,
+              error: schemaValidation.error,
+            });
+            if (attempt === MAX_RETRIES) break;
+            continue;
+          }
+        }
+
         recordSuccess();
         recordParseLatency(Date.now() - requestStart);
         logger.info("CoT parsed successfully", {
@@ -338,7 +401,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 });
 
 // ------------------------------------------------------------------
-// 7. START
+// 8. START
 // ------------------------------------------------------------------
 async function main(): Promise<void> {
   const transport = new StdioServerTransport();
