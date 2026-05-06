@@ -43,15 +43,15 @@ Based on the honest value review, here are actionable improvements, organized by
 - [x] **Token budget fine‑tuning**  
   ✅ `REASONING_OVERHEAD` env var added (default 650). Allows manual tuning of the fixed overhead in budget computation.
 
-- [ ] **Graceful handling of model‑specific quirks**  
-  Support model‑specific system prompt variants (e.g., Grok, Gemini, GPT‑4) that may respond differently to the standard prompt. Use `MODEL` env to select prompt template.
+- [x] **Graceful handling of model‑specific quirks**  
+  ✅ `getSystemPrompt()` selects tuned prompts for Claude, GPT-4, Gemini, Grok. Falls back to default for unknown models.
 
 ---
 
 ## 🟡 Medium (Nice‑to‑Haves for Power Users)
 
-- [ ] **Retry with different model**  
-  On failure, try alternative models (e.g., from a comma‑separated `FALLBACK_MODELS` env list). Useful if one model refuses to output JSON but another complies.
+- [x] **Retry with different model**  
+  ✅ `FALLBACK_MODELS=gpt-4o,claude-3-5-sonnet` cycles through models on failure. Each gets `MAX_RETRIES+1` attempts.
 
 - [x] **Expose raw token usage in response**  
   ✅ Appended to response text: `📊 Token Usage: X in / Y out / Z budget`. Available on both success and fallback responses.

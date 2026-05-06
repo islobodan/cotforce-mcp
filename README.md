@@ -21,6 +21,8 @@
 - **Per‑request rejection memo** — no global mutable state; safe under concurrent tool calls.
 - **Token budgeting with tiktoken** — accurate token counting using OpenAI's `cl100k_base` encoding, with fallback to character heuristic. Tweak via `REASONING_OVERHEAD`.
 - **Configurable model** — set `MODEL` environment variable to hint a specific model; leave unset for host default.
+- **Model-specific prompts** — automatically selects tuned system prompts for Claude, GPT-4, Gemini, and Grok based on `MODEL`.
+- **Fallback models** — `FALLBACK_MODELS=gpt-4o,claude-3-5-sonnet` cycles to next model on failure.
 - **Structured logging** — timestamped, level‑filtered logs to stderr (supports `LOG_LEVEL`).
 - **Output truncation detection** — detects when the LLM response hits the token limit and retries with a conciseness hint (`TRUNCATION_THRESHOLD`).
 - **Token usage exposure** — every response includes input / output / budget token counts so callers can optimize.
@@ -58,6 +60,7 @@ The server is configured via environment variables (all optional):
 | `TIMEOUT` | `30000` | Sampling timeout in ms. |
 | `TRUNCATION_THRESHOLD` | `0.95` | Ratio of output/budget that triggers truncation warning and conciseness retry. |
 | `REASONING_OVERHEAD` | `650` | Fixed token overhead added to the budget formula. Increase for verbose models. |
+| `FALLBACK_MODELS` | *(not set)* | Comma-separated list of fallback models (e.g. `gpt-4o,claude-3-5-sonnet`). Cycled on failure. |
 | `LOG_LEVEL` | `INFO` | One of `DEBUG`, `INFO`, `WARN`, `ERROR`. |
 
 ### Example
@@ -82,6 +85,7 @@ Add to your MCP client configuration (e.g. Claude Desktop, `claude_desktop_confi
       "args": ["/path/to/cotforce-mcp/index.js"],
       "env": {
         "MODEL": "claude-3-5-sonnet",
+        "FALLBACK_MODELS": "gpt-4o,gemini-1-5-pro",
         "MAX_RETRIES": "2"
       }
     }
