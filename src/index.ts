@@ -15,6 +15,17 @@ import {
   isTruncated,
 } from "./lib/tokens.js";
 import { AGENTIC_SYSTEM_PROMPT, CORRECTION_SUFFIX } from "./lib/prompts.js";
+import {
+  getMetrics,
+  recordFailure,
+  recordParseLatency,
+  recordRequest,
+  recordRetry,
+  recordSamplingError,
+  recordSuccess,
+  recordTokenUsage,
+  recordTruncation,
+} from "./lib/metrics.js";
 
 // ------------------------------------------------------------------
 // 1. LOGGING (Structured, with levels)
@@ -198,8 +209,12 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
 // 6. TOOL EXECUTION WITH CHAOS PROTOCOL
 // ------------------------------------------------------------------
 server.setRequestHandler(CallToolRequestSchema, async (request) => {
+  const requestStart = Date.now();
+  recordRequest();
+
   const parseArgs = SolveProblemArgsSchema.safeParse(request.params.arguments);
   if (!parseArgs.success) {
+    recordFailure();
     throw new McpError(
       ErrorCode.InvalidParams,
       `Invalid arguments: ${parseArgs.error.message}`
@@ -219,6 +234,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
     const temperature =
       attempt === 0 ? BASE_TEMP : BASE_TEMP + TEMP_INCREMENT * attempt;
     const isRetry = attempt > 0;
+    if (isRetry) recordRetry();
 
     logger.info("Processing request attempt", {
       attempt,
@@ -234,7 +250,16 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       lastRaw = samplingResult.text;
       lastTokenCount = samplingResult.tokenCount;
 
+      if (samplingResult.tokenCount) {
+        recordTokenUsage(
+          samplingResult.tokenCount.input,
+          samplingResult.tokenCount.output,
+          samplingResult.tokenCount.budget
+        );
+      }
+
       if (samplingResult.truncated) {
+        recordTruncation();
         lastRejectionMemo =
           `[TRUNCATED] Your previous response hit the token limit (${samplingResult.tokenCount.output}/${samplingResult.tokenCount.budget}). ` +
           "Please be more concise in your reasoning.\n\n" +
@@ -248,6 +273,8 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
       const parsed = parseCoT(samplingResult.text);
       if (parsed) {
+        recordSuccess();
+        recordParseLatency(Date.now() - requestStart);
         logger.info("CoT parsed successfully", {
           reasonLength: parsed.reasoning.length,
         });
@@ -274,12 +301,15 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
       if (attempt === MAX_RETRIES) break;
     } catch (err) {
+      recordSamplingError();
       lastRejectionMemo = `[Sampling error]: ${err instanceof Error ? err.message : String(err)}`;
       logger.error("Attempt failed with exception", {
         attempt,
         error: lastRejectionMemo,
       });
       if (attempt === MAX_RETRIES) {
+        recordFailure();
+        recordParseLatency(Date.now() - requestStart);
         throw new McpError(
           ErrorCode.InternalError,
           `Sampling failed after ${MAX_RETRIES + 1} attempts: ${lastRejectionMemo}`
@@ -289,6 +319,8 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
   }
 
   logger.warn("Returning raw output fallback after all retries");
+  recordFailure();
+  recordParseLatency(Date.now() - requestStart);
   const tokenMeta = lastTokenCount
     ? `\n\n📊 Token Usage: ${lastTokenCount.input} in / ${lastTokenCount.output} out / ${lastTokenCount.budget} budget`
     : "";
@@ -319,6 +351,15 @@ async function main(): Promise<void> {
     tiktoken: getEncodingSafe() ? "available" : "fallback to heuristic",
   });
 }
+
+function shutdown(): void {
+  const snapshot = getMetrics();
+  logger.info("Server shutting down", { metrics: snapshot });
+  process.exit(0);
+}
+
+process.on("SIGINT", shutdown);
+process.on("SIGTERM", shutdown);
 
 main().catch((error: unknown) => {
   logger.error("Fatal server error", {
