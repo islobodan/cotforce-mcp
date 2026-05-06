@@ -4,6 +4,19 @@
  * Works with OpenAI, LMStudio, Ollama, and any OpenAI-compatible provider.
  */
 
+/**
+ * Redact sensitive patterns from error text before it reaches the MCP client.
+ * Covers OpenAI-style sk- keys, Bearer tokens, and common API key formats.
+ */
+function sanitizeErrorText(text: string): string {
+  return text
+    .replace(/sk-[a-zA-Z0-9]{20,}/g, "sk-...")
+    .replace(/Bearer\s+[a-zA-Z0-9_-]{20,}/gi, "Bearer sk-...")
+    .replace(/apikey=[a-zA-Z0-9_-]{8,}/gi, "apikey=...")
+    .replace(/key=[a-zA-Z0-9_-]{8,}/gi, "key=...")
+    .replace(/token=[a-zA-Z0-9_-]{8,}/gi, "token=...");
+}
+
 export interface DirectLLMOptions {
   systemPrompt: string;
   userPrompt: string;
@@ -55,7 +68,7 @@ export async function callDirectLLM(
   if (!response.ok) {
     const errorText = await response.text();
     throw new Error(
-      `Direct LLM HTTP error ${response.status}: ${errorText}`
+      `Direct LLM HTTP error ${response.status}: ${sanitizeErrorText(errorText)}`
     );
   }
 
