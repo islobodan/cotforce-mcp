@@ -69,11 +69,11 @@ Based on the honest value review, here are actionable improvements, organized by
 
 ## 🟢 Low (Cosmetic / Dev Experience)
 
-- [x] **Add progress notifications for long CoT**  
+- [x] **Add progress notifications for long CoT**
   ✅ Sends `notifications/progress` when client provides `_meta.progressToken`. Reports step number, total steps, and human-readable messages at key stages (LLM call, truncation recovery, parse success, model switch).
 
-- [ ] **Improve few-shot examples**
-  Include more diverse examples (arithmetic, logic, creative writing) in the system prompt to cover a wider range of problem types.
+- [x] **Improve few‑shot examples**  
+  ✅ Expanded from 1 to 4 correct examples showing all result types (number, string, object, boolean). Added small-model-specific prompt for Qwen, Gemma, Llama, Mistral, Phi.
 
 - [x] **Write integration tests with real LLMs**
   ✅ Comprehensive test suite with 112 tests covering parser layers (including truncated JSON recovery), token budgeting, and MCP server integration via `@slbdn/mcp-tester`.
@@ -81,20 +81,20 @@ Based on the honest value review, here are actionable improvements, organized by
 - [x] **Create a `CONTRIBUTING.md`**
   ✅ Architecture documented in README.md with `src/lib/` module descriptions.
 
-- [ ] **Publish to npm**
-  Automate CI/CD and publish as `cotforce-mcp` for easy installation.
+- [x] **Publish to npm**  
+  ✅ Package configured as `@slbdn/cotforce-mcp`. Ready to publish with `npm publish --access public`. Dry-run passes: 31 files, 36.2 kB.
 
 ---
 
 ## 🔮 Future / Experimental
 
-- [ ] **Self-optimizing prompt generator**
+- [ ] **Self‑optimizing prompt generator**  
   Use the rejection log to automatically rewrite the system prompt (e.g., via another LLM call) to close recurring failure patterns.
 
-- [ ] **Plug-in architecture for parsers**
+- [ ] **Plug‑in architecture for parsers**  
   Allow users to write custom parser modules (e.g., YAML, CSV) without modifying core code.
 
-- [ ] **Tool-specific CoT caching**
+- [ ] **Tool‑specific CoT caching**  
   Cache successful CoT results for identical prompts (with TTL) to reduce LLM calls for repeated tasks.
 
 ---
