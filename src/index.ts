@@ -295,7 +295,7 @@ async function sampleLLM(
         maxTokens,
         temperature,
       },
-      { timeout: parseInt(process.env.TIMEOUT || "30000", 10) }
+      { timeout: parseInt(process.env.TIMEOUT || "60000", 10) }
     );
 
     if (response.content.type !== "text") {

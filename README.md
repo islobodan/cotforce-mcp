@@ -57,7 +57,7 @@ The server is configured via environment variables (all optional):
 | `MAX_RETRIES` | `2` | Number of retry attempts before returning raw output. |
 | `BASE_TEMP` | `0.1` | Initial sampling temperature. |
 | `TEMP_INCREMENT` | `0.2` | Temperature added per retry attempt. |
-| `TIMEOUT` | `30000` | Sampling timeout in ms. |
+| `TIMEOUT` | `60000` | Sampling timeout in ms. |
 | `TRUNCATION_THRESHOLD` | `0.95` | Ratio of output/budget that triggers truncation warning and conciseness retry. |
 | `REASONING_OVERHEAD` | `650` | Fixed token overhead added to the budget formula. Increase for verbose models. |
 | `FALLBACK_MODELS` | *(not set)* | Comma-separated list of fallback models (e.g. `gpt-4o,claude-3-5-sonnet`). Cycled on failure. |
