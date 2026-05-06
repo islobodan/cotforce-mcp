@@ -86,9 +86,9 @@ Here are diverse example prompts that showcase the server's capabilities.
 
 ---
 
-## Complex Reasoning
+## Complex Reasoning (CoT Stress Tests)
 
-### 7. Logic Puzzle
+### 7. Logic Puzzle — Mislabeled Boxes
 ```json
 {
   "name": "solve_problem",
@@ -98,7 +98,7 @@ Here are diverse example prompts that showcase the server's capabilities.
 }
 ```
 
-### 8. Word Problem
+### 8. Multi-step Deduction
 ```json
 {
   "name": "solve_problem",
@@ -108,7 +108,7 @@ Here are diverse example prompts that showcase the server's capabilities.
 }
 ```
 
-### 9. Probability
+### 9. Probability with Constraints
 ```json
 {
   "name": "solve_problem",
@@ -120,9 +120,122 @@ Here are diverse example prompts that showcase the server's capabilities.
 
 ---
 
+## Problems That Require CoT (Under-30B Models Fail Without It)
+
+### 10. Frobenius Coin Problem
+**Smaller models without CoT often guess wrong or fail to prove.**
+```json
+{
+  "name": "solve_problem",
+  "arguments": {
+    "prompt": "Using only 3-cent and 5-cent stamps, what is the largest postage amount you CANNOT make? Prove your answer by checking every amount from 1 upward, showing which are possible and why the largest impossible one cannot be formed.",
+    "resultSchema": {
+      "largest_impossible": "number",
+      "explanation": "string"
+    }
+  }
+}
+```
+
+### 11. Water Jug Problem (State Tracking)
+**Requires tracking jug states step-by-step. Smaller models hallucinate invalid moves.**
+```json
+{
+  "name": "solve_problem",
+  "arguments": {
+    "prompt": "You have a 3-liter jug and a 5-liter jug. The faucet is broken — you can only fill a jug completely, empty it completely, or pour from one to the other until one is empty or the other is full. Describe the exact sequence of steps to measure exactly 4 liters. Track the state (amount in each jug) after every single move.",
+    "resultSchema": {
+      "steps": "object",
+      "step_count": "number"
+    }
+  }
+}
+```
+
+### 12. Age Word Problem with System of Equations
+**Smaller models often skip setup and jump to a wrong number.**
+```json
+{
+  "name": "solve_problem",
+  "arguments": {
+    "prompt": "In 5 years, Alice will be twice as old as Bob was 3 years ago. Right now, Alice is 4 years older than Bob. How old is Alice now? Show every equation you set up and solve step by step.",
+    "resultSchema": {
+      "alice_age": "number",
+      "bob_age": "number",
+      "equations": "object"
+    }
+  }
+}
+```
+
+### 13. Calendar/Date Calculation
+**Requires modular arithmetic. Easy to make off-by-one errors without CoT.**
+```json
+{
+  "name": "solve_problem",
+  "arguments": {
+    "prompt": "January 1, 2024 was a Monday. Using only reasoning (no pattern matching from training data), calculate what day of the week December 25, 2024 falls on. Account for 2024 being a leap year. Show your day-counting step by step."
+  }
+}
+```
+
+### 14. Combinatorics with Overlapping Sets
+**Inclusion-exclusion principle. Smaller models often double-count.**
+```json
+{
+  "name": "solve_problem",
+  "arguments": {
+    "prompt": "In a class of 40 students: 25 play soccer, 20 play basketball, and 10 play neither. How many play both soccer and basketball? Use a Venn diagram approach and show the inclusion-exclusion formula step by step.",
+    "resultSchema": {
+      "both": "number",
+      "only_soccer": "number",
+      "only_basketball": "number",
+      "neither": "number"
+    }
+  }
+}
+```
+
+### 15. Constraint Satisfaction (Logic Grid)
+**Requires propagating constraints. Smaller models guess or lose track.**
+```json
+{
+  "name": "solve_problem",
+  "arguments": {
+    "prompt": "Four people live in a row of houses numbered 1 to 4. Clues: (1) Alice does not live in house 1 or 4. (2) Bob lives next to Charlie. (3) Diana lives in house 4. (4) Bob does not live in house 2. Who lives in each house? Show your elimination process for each clue.",
+    "resultSchema": {
+      "house_1": "string",
+      "house_2": "string",
+      "house_3": "string",
+      "house_4": "string"
+    }
+  }
+}
+```
+
+### 16. Recursive Sequence
+**Requires building the sequence step by step. Jumping to closed form often fails for smaller models.**
+```json
+{
+  "name": "solve_problem",
+  "arguments": {
+    "prompt": "A sequence starts: a(1) = 2, a(2) = 3. For n > 2, a(n) = a(n-1) * a(n-2) - a(n-1) - a(n-2). Compute a(3), a(4), a(5), a(6), and a(7). Show every substitution explicitly so I can verify each step.",
+    "resultSchema": {
+      "a3": "number",
+      "a4": "number",
+      "a5": "number",
+      "a6": "number",
+      "a7": "number"
+    }
+  }
+}
+```
+
+---
+
 ## Creative & Open-ended
 
-### 10. Story Outline
+### 17. Story Outline
 ```json
 {
   "name": "solve_problem",
@@ -137,7 +250,7 @@ Here are diverse example prompts that showcase the server's capabilities.
 }
 ```
 
-### 11. Recipe Adaptation
+### 18. Recipe Adaptation
 ```json
 {
   "name": "solve_problem",
@@ -157,7 +270,7 @@ Here are diverse example prompts that showcase the server's capabilities.
 
 ## Debugging & Technical
 
-### 12. Regex Construction
+### 19. Regex Construction
 ```json
 {
   "name": "solve_problem",
@@ -167,7 +280,7 @@ Here are diverse example prompts that showcase the server's capabilities.
 }
 ```
 
-### 13. SQL Query
+### 20. SQL Query
 ```json
 {
   "name": "solve_problem",
@@ -177,7 +290,7 @@ Here are diverse example prompts that showcase the server's capabilities.
 }
 ```
 
-### 14. Algorithm Design
+### 21. Algorithm Design
 ```json
 {
   "name": "solve_problem",
@@ -191,7 +304,7 @@ Here are diverse example prompts that showcase the server's capabilities.
 
 ## Edge Cases (Stress Test Parser)
 
-### 15. Nested JSON Result
+### 22. Nested JSON Result
 ```json
 {
   "name": "solve_problem",
@@ -207,7 +320,7 @@ Here are diverse example prompts that showcase the server's capabilities.
 }
 ```
 
-### 16. Boolean Reasoning
+### 23. Boolean Reasoning
 ```json
 {
   "name": "solve_problem",
@@ -234,6 +347,11 @@ MODEL=gpt-4o node index.js
 ### Gemini (no markdown)
 ```bash
 MODEL=gemini-1-5-pro node index.js
+```
+
+### LMStudio via Direct HTTP
+```bash
+MODE=direct API_KEY=any API_BASE_URL=http://localhost:1234/v1 MODEL=local-model node index.js
 ```
 
 ### With Fallback Models
