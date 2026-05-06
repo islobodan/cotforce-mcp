@@ -289,10 +289,15 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
   const BASE_TEMP = parseFloat(process.env.BASE_TEMP || "0.1");
   const TEMP_INCREMENT = parseFloat(process.env.TEMP_INCREMENT || "0.2");
   const fallbackModels = getFallbackModels();
-  const models = [
+  const models: (string | undefined)[] = [
     process.env.MODEL,
     ...fallbackModels,
-  ].filter(Boolean) as string[];
+  ].filter((m): m is string => Boolean(m));
+
+  // Ensure we always try at least once with host default when no model configured
+  if (models.length === 0) {
+    models.push(undefined);
+  }
 
   let lastRaw: string | null = null;
   let lastRejectionMemo: string | null = null;
@@ -301,7 +306,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
   while (modelIndex < models.length) {
     const currentModel = models[modelIndex];
-    logger.info("Trying model", { model: currentModel, modelIndex });
+    logger.info("Trying model", { model: currentModel ?? "host default", modelIndex });
 
     for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
       const temperature =
@@ -313,7 +318,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         attempt,
         temperature,
         isRetry,
-        model: currentModel,
+        model: currentModel ?? "host default",
       });
 
       try {
@@ -341,7 +346,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
             samplingResult.text.slice(0, 300);
           logger.warn("Truncation detected, injecting conciseness hint", {
             attempt,
-            model: currentModel,
+            model: currentModel ?? "host default",
           });
           if (attempt === MAX_RETRIES) break;
           continue;
@@ -372,12 +377,12 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           recordParseLatency(Date.now() - requestStart);
           logger.info("CoT parsed successfully", {
             reasonLength: parsed.reasoning.length,
-            model: currentModel,
+            model: currentModel ?? "host default",
           });
           const tokenMeta = lastTokenCount
             ? `\n\n📊 Token Usage: ${lastTokenCount.input} in / ${lastTokenCount.output} out / ${lastTokenCount.budget} budget`
             : "";
-          const modelMeta = models.length > 1 ? `\n🔄 Model used: ${currentModel}` : "";
+          const modelMeta = models.length > 1 ? `\n🔄 Model used: ${currentModel ?? "host default"}` : "";
           return {
             content: [
               {
@@ -395,7 +400,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         logger.warn("Parse failed, storing rejection memo", {
           attempt,
           snippetLength: lastRejectionMemo.length,
-          model: currentModel,
+          model: currentModel ?? "host default",
         });
 
         if (attempt === MAX_RETRIES) break;
@@ -405,7 +410,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         logger.error("Attempt failed with exception", {
           attempt,
           error: lastRejectionMemo,
-          model: currentModel,
+          model: currentModel ?? "host default",
         });
         if (attempt === MAX_RETRIES) {
           recordFailure();
@@ -418,13 +423,14 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
     modelIndex++;
     if (modelIndex < models.length) {
+      const nextModel = models[modelIndex] ?? "host default";
       logger.info("Switching to fallback model", {
-        from: currentModel,
-        to: models[modelIndex],
+        from: currentModel ?? "host default",
+        to: nextModel,
       });
       lastRejectionMemo =
-        `[MODEL SWITCH] Model ${currentModel} failed after ${MAX_RETRIES + 1} attempts. ` +
-        `Trying ${models[modelIndex]} instead.`;
+        `[MODEL SWITCH] Model ${currentModel ?? "host default"} failed after ${MAX_RETRIES + 1} attempts. ` +
+        `Trying ${nextModel} instead.`;
     }
   }
 
