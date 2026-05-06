@@ -178,9 +178,22 @@ If parsing fails after all retries, the server returns the raw LLM output with a
   - **Success** — structured CoT result.
   - **Soft failure** — raw LLM output if parsing fails after all retries.
 
-### Sampling Internals
+### Sampling / LLM Calling
 
-Uses MCP native `sampling/createMessage` to call the configured LLM. The system prompt includes few‑shot examples and a strict schema constraint.
+CotForce supports **two modes** for calling the LLM:
+
+**MCP Sampling** (default with compatible clients):
+- Uses MCP native `sampling/createMessage`
+- Client selects and calls the model
+- Requires client support (Claude Desktop, etc.)
+
+**Direct HTTP** (for clients without sampling support):
+- Calls OpenAI-compatible `/v1/chat/completions` directly
+- Works with OpenAI, LMStudio, Ollama, and any compatible provider
+- Activated automatically in `MODE=auto` when `API_KEY` is set and client lacks sampling
+- Or force with `MODE=direct`
+
+Both modes use the same system prompt with few‑shot examples and strict schema constraints.
 
 ---
 
@@ -189,14 +202,20 @@ Uses MCP native `sampling/createMessage` to call the configured LLM. The system 
 ```
 cotforce-mcp/
 ├── src/
-│   ├── index.ts           # MCP server, tool handlers, sampling logic
+│   ├── index.ts           # MCP server, tool handlers, routing logic
 │   └── lib/
 │       ├── parser.ts      # Multi-layer CoT parser + Zod schemas
 │       ├── tokens.ts      # tiktoken integration + budget computation
-│       └── prompts.ts     # System prompt + correction suffix templates
+│       ├── prompts.ts     # Model-specific system prompts
+│       ├── metrics.ts     # In-memory request/performance counters
+│       └── llm.ts         # Direct HTTP LLM client (OpenAI-compatible)
 ├── tests/
 │   ├── parser.test.ts     # 50 unit tests for parser layers
 │   ├── tokens.test.ts     # 16 unit tests for token budgeting
+│   ├── schema.test.ts     # 8 unit tests for result schema validation
+│   ├── metrics.test.ts    # 9 unit tests for metrics tracking
+│   ├── prompts.test.ts    # 10 unit tests for model-specific prompts
+│   ├── llm.test.ts        # 3 unit tests for direct mode detection
 │   └── server.test.ts     # 11 integration tests via @slbdn/mcp-tester
 ├── index.js               # Root launcher (delegates to dist/)
 ├── dist/                  # Compiled TypeScript output
@@ -207,11 +226,11 @@ cotforce-mcp/
 
 ## 🧠 How It Works
 
-1. **System prompt** enforces JSON output with `reasoning` and `result`.
-2. **Multi‑layer parser** attempts to extract valid JSON from the raw response (even if wrapped in markdown, XML tags, or labels).
-3. **Retry logic** — if parsing fails, the server injects a correction suffix and increases temperature, then tries again.
+1. **System prompt** enforces JSON output with `reasoning` and `result`. Model-specific variants tuned for Claude, GPT-4, Gemini, Grok.
+2. **Multi‑layer parser** attempts to extract valid JSON from the raw response (direct JSON, fenced blocks, XML/labels, brace-balancing scanner).
+3. **Retry logic** — if parsing fails, injects correction suffix and increases temperature. Supports fallback models (`FALLBACK_MODELS`) when primary model refuses.
 4. **Rejection memory** stores a snippet of the last failure to contextualise the next call (scoped per‑request, thread‑safe).
-5. **Token budgeting** uses `tiktoken` to estimate input tokens and sets `maxTokens` dynamically (capped between 1024 and 4096).
+5. **Token budgeting** uses `tiktoken` to estimate input tokens and sets `maxTokens` dynamically (capped between 1024 and 4096). Detects truncation and retries with conciseness hint.
 
 ---
 
@@ -233,7 +252,7 @@ npm run typecheck  # type-check src/ and tests/
 | `npm run build` | Compile TypeScript (`src/` → `dist/`) |
 | `npm run dev` | Watch mode compilation |
 | `npm run typecheck` | TypeScript type-checking for source and tests |
-| `npm test` | Run full Jest test suite (65+ tests) |
+| `npm test` | Run full Jest test suite (95+ tests) |
 | `npm run test:smoke` | Quick smoke test via `mcp-tester` CLI |
 | `npm run test:tools` | List available tools via `mcp-tester` CLI |
 
@@ -242,7 +261,11 @@ npm run typecheck  # type-check src/ and tests/
 The test suite uses **Jest** with **ts-jest** (ESM) and **`@slbdn/mcp-tester`** for MCP server integration testing:
 
 - **Parser tests** (`tests/parser.test.ts`) — 50 unit tests covering all 4 parser layers, edge cases, and `AgenticCotSchema` validation.
-- **Token tests** (`tests/tokens.test.ts`) — 16 unit tests for `tiktoken` integration, budget computation, and encoding lifecycle.
+- **Token tests** (`tests/tokens.test.ts`) — 16 unit tests for `tiktoken` integration, budget computation, and `REASONING_OVERHEAD` tuning.
+- **Schema tests** (`tests/schema.test.ts`) — 8 unit tests for user-supplied `resultSchema` validation.
+- **Metrics tests** (`tests/metrics.test.ts`) — 9 unit tests for request counters, latency tracking, and token usage averages.
+- **Prompt tests** (`tests/prompts.test.ts`) — 10 unit tests for model-specific prompt selection.
+- **LLM tests** (`tests/llm.test.ts`) — 3 unit tests for direct HTTP mode detection.
 - **Server tests** (`tests/server.test.ts`) — 11 integration tests for tool discovery, argument validation, server lifecycle, and concurrent calls.
 
 Custom Jest matchers are available via `@slbdn/mcp-tester`:
