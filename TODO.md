@@ -27,8 +27,8 @@ Based on the honest value review, here are actionable improvements, organized by
 - [x] **Add output truncation detection**  
   ✅ `TRUNCATION_THRESHOLD` env var (default 0.95). Detects when output/budget ratio exceeds threshold, logs warning, injects conciseness hint into rejection memo, and retries.
 
-- [ ] **Integrate structured monitoring/metrics**  
-  Expose counters (total requests, success/retry/failure rates, average token usage, parse latency) via a `/metrics` endpoint or log structured JSON that can be consumed by tools like Prometheus or Datadog.
+- [x] **Integrate structured monitoring/metrics**  
+  ✅ `src/lib/metrics.ts` tracks total requests, successes, failures, truncations, retries, sampling errors, parse latency, and average token usage. Snapshot logged on shutdown.
 
 ---
 
@@ -37,11 +37,11 @@ Based on the honest value review, here are actionable improvements, organized by
 - [ ] **Multi‑session rejection memory**  
   Instead of a single rejection memo, store a sliding window of recent failures (e.g., last 5). Aggregate common failure patterns (e.g., “model outputs markdown blocks without JSON”) and inject more targeted corrections.
 
-- [ ] **Validate output against a user‑supplied schema**  
-  Allow the caller to provide an optional `resultSchema` parameter (JSON schema) that validates the `result` field. If mismatch, trigger retry or return detailed error.
+- [x] **Validate output against a user‑supplied schema**  
+  ✅ Optional `resultSchema` parameter on `solve_problem` with simple type-map validation (`string`, `number`, `boolean`, `object`). Supports nested schemas. Mismatch triggers retry.
 
-- [ ] **Token budget fine‑tuning**  
-  Replace the fixed overhead formula with a machine‑learned or adaptive model that estimates reasoning length based on prompt complexity and historical data. At minimum, add an env variable `REASONING_OVERHEAD` for manual tuning.
+- [x] **Token budget fine‑tuning**  
+  ✅ `REASONING_OVERHEAD` env var added (default 650). Allows manual tuning of the fixed overhead in budget computation.
 
 - [ ] **Graceful handling of model‑specific quirks**  
   Support model‑specific system prompt variants (e.g., Grok, Gemini, GPT‑4) that may respond differently to the standard prompt. Use `MODEL` env to select prompt template.

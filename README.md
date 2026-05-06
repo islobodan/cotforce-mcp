@@ -19,12 +19,14 @@
 - **Zod runtime validation** — validates tool arguments and parsed CoT output with strict schemas.
 - **Automatic retry with temperature increase** — up to 3 attempts (configurable) with increasing temperature and correction suffixes.
 - **Per‑request rejection memo** — no global mutable state; safe under concurrent tool calls.
-- **Token budgeting with tiktoken** — accurate token counting using OpenAI's `cl100k_base` encoding, with fallback to character heuristic.
+- **Token budgeting with tiktoken** — accurate token counting using OpenAI's `cl100k_base` encoding, with fallback to character heuristic. Tweak via `REASONING_OVERHEAD`.
 - **Configurable model** — set `MODEL` environment variable to hint a specific model; leave unset for host default.
 - **Structured logging** — timestamped, level‑filtered logs to stderr (supports `LOG_LEVEL`).
 - **Output truncation detection** — detects when the LLM response hits the token limit and retries with a conciseness hint (`TRUNCATION_THRESHOLD`).
 - **Token usage exposure** — every response includes input / output / budget token counts so callers can optimize.
-- **Comprehensive test suite** — 65+ tests covering parser layers, token budgeting, and MCP server integration via `@slbdn/mcp-tester`.
+- **User-supplied result schema** — optional `resultSchema` parameter validates the `result` field type‑map; mismatches trigger retry.
+- **Structured metrics** — in-memory counters for requests, success/fail rates, truncations, retries, latency, and token usage. Logged on shutdown.
+- **Comprehensive test suite** — 80+ tests covering parser layers, token budgeting, metrics, schema validation, and MCP server integration.
 
 ---
 
@@ -55,6 +57,7 @@ The server is configured via environment variables (all optional):
 | `TEMP_INCREMENT` | `0.2` | Temperature added per retry attempt. |
 | `TIMEOUT` | `30000` | Sampling timeout in ms. |
 | `TRUNCATION_THRESHOLD` | `0.95` | Ratio of output/budget that triggers truncation warning and conciseness retry. |
+| `REASONING_OVERHEAD` | `650` | Fixed token overhead added to the budget formula. Increase for verbose models. |
 | `LOG_LEVEL` | `INFO` | One of `DEBUG`, `INFO`, `WARN`, `ERROR`. |
 
 ### Example
@@ -98,6 +101,23 @@ Add to your MCP client configuration (e.g. Claude Desktop, `claude_desktop_confi
   }
 }
 ```
+
+### With Result Schema Validation
+
+```json
+{
+  "name": "solve_problem",
+  "arguments": {
+    "prompt": "List the prime numbers between 10 and 20",
+    "resultSchema": {
+      "primes": "object",
+      "count": "number"
+    }
+  }
+}
+```
+
+If the `result` field doesn't match the schema, the server retries with a correction hint.
 
 ### Example Response
 

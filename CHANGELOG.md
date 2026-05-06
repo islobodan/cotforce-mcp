@@ -10,8 +10,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - **Output truncation detection** — `isTruncated()` in `src/lib/tokens.ts` with configurable `TRUNCATION_THRESHOLD` env var (default 0.95). Detects when LLM responses hit the token budget and retries with a conciseness hint.
 - **Token usage exposure** — `sampleLLM` now tracks input/output/budget token counts. Successful and fallback responses include `📊 Token Usage: X in / Y out / Z budget`.
-- Comprehensive test suite: 65+ tests across parser, tokens, and server integration
-- Extracted library modules: `src/lib/parser.ts`, `src/lib/tokens.ts`, `src/lib/prompts.ts`
+- **Token budget fine-tuning** — `REASONING_OVERHEAD` env var allows tuning the fixed overhead in budget computation (default 650).
+- **Structured monitoring/metrics** — `src/lib/metrics.ts` tracks requests, success/fail rates, truncations, retries, sampling errors, parse latency, and average token usage. Metrics snapshot logged on SIGINT/SIGTERM shutdown.
+- **User-supplied result schema** — optional `resultSchema` parameter on `solve_problem` validates the `result` field against a simple type-map (`{ key: "string" | "number" | "boolean" | "object" }`). Supports nested objects. Mismatches trigger retry.
+- Comprehensive test suite: 80+ tests across parser, tokens, metrics, schema validation, and server integration
+- Extracted library modules: `src/lib/parser.ts`, `src/lib/tokens.ts`, `src/lib/prompts.ts`, `src/lib/metrics.ts`
 - `@slbdn/mcp-tester` integration for MCP server testing
 - Jest + ts-jest ESM test runner configuration
 - `.npmrc` and `.npmignore` for publish configuration
