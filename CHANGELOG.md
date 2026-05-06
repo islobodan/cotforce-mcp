@@ -25,6 +25,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - `AgenticCotSchema` now rejects `undefined` result values via `z.custom`
 - Root `index.js` launcher checks for built `dist/` before delegating
+- `API_KEY` is now optional for local endpoints (LMStudio, Ollama) — `isDirectModeConfigured()` returns true when `API_BASE_URL` is set or `MODE=direct`
+- Truncation retry now uses **1.5x budget increase** instead of just a conciseness hint — detects `finish_reason: "length"` from LLM API for reliable truncation detection
+- Object results and reasoning are formatted with `JSON.stringify()` instead of `[object Object]`
 
 ## [1.0.0] - 2026-05-05
 

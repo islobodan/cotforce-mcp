@@ -16,6 +16,7 @@ export interface DirectLLMOptions {
 
 export interface DirectLLMResult {
   text: string;
+  finishReason?: string;
   usage?: {
     prompt_tokens: number;
     completion_tokens: number;
@@ -61,6 +62,7 @@ export async function callDirectLLM(
   const data = (await response.json()) as {
     choices?: Array<{
       message?: { content?: string };
+      finish_reason?: string;
     }>;
     usage?: {
       prompt_tokens: number;
@@ -69,12 +71,13 @@ export async function callDirectLLM(
     };
   };
 
-  const text = data.choices?.[0]?.message?.content ?? "";
+  const choice = data.choices?.[0];
+  const text = choice?.message?.content ?? "";
   if (!text) {
     throw new Error("Direct LLM returned empty content");
   }
 
-  return { text, usage: data.usage };
+  return { text, finishReason: choice?.finish_reason, usage: data.usage };
 }
 
 export function isDirectModeConfigured(): boolean {
