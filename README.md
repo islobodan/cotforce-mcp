@@ -78,7 +78,9 @@ MODEL=gpt-4o MAX_RETRIES=3 BASE_TEMP=0.2 TEMP_INCREMENT=0.15 LOG_LEVEL=DEBUG npx
 
 ### As an MCP Tool
 
-Add to your MCP client configuration (e.g. Claude Desktop, `claude_desktop_config.json`):
+Add to your MCP client configuration. A `.mcp.json` file is included in the package for auto-discovery by clients like Cursor, VS Code, and Windsurf. Copy the relevant config below to your client's settings:
+
+**With MCP sampling** (Claude Desktop):
 
 **With MCP sampling** (Claude Desktop):
 ```json
