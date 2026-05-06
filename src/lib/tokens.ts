@@ -38,3 +38,16 @@ export function computeTokenBudget(
   const max = opts?.max ?? 4096;
   return Math.min(max, Math.max(min, recommended));
 }
+
+/**
+ * Check if an LLM output appears truncated based on its token count vs budget.
+ * Returns true if output consumed >= threshold * budget.
+ */
+export function isTruncated(
+  outputTokens: number,
+  budget: number,
+  threshold = parseFloat(process.env.TRUNCATION_THRESHOLD || "0.95")
+): boolean {
+  if (budget <= 0) return false;
+  return outputTokens / budget >= threshold;
+}

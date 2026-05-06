@@ -8,7 +8,12 @@ import {
 } from "@modelcontextprotocol/sdk/types.js";
 import { z } from "zod";
 import { parseCoT } from "./lib/parser.js";
-import { computeTokenBudget, getEncodingSafe } from "./lib/tokens.js";
+import {
+  computeTokenBudget,
+  countTokens,
+  getEncodingSafe,
+  isTruncated,
+} from "./lib/tokens.js";
 import { AGENTIC_SYSTEM_PROMPT, CORRECTION_SUFFIX } from "./lib/prompts.js";
 
 // ------------------------------------------------------------------
@@ -61,11 +66,25 @@ const server = new Server(
 // ------------------------------------------------------------------
 // 4. LLM SAMPLING FUNCTION (with retry logic, model env, temp_increment)
 // ------------------------------------------------------------------
+interface SamplingResult {
+  text: string;
+  tokenCount: {
+    input: number;
+    output: number;
+    budget: number;
+  };
+  truncated: boolean;
+}
+
 async function sampleLLM(
   prompt: string,
   rejectionMemo: string | null,
-  options?: { temperature?: number; isRetry?: boolean }
-): Promise<string> {
+  options?: {
+    temperature?: number;
+    isRetry?: boolean;
+    budgetOverride?: number;
+  }
+): Promise<SamplingResult> {
   const baseTemp = parseFloat(process.env.BASE_TEMP || "0.1");
   const tempIncrement = parseFloat(process.env.TEMP_INCREMENT || "0.2");
   const temperature =
@@ -80,7 +99,11 @@ async function sampleLLM(
     ? `${prompt}\n\n[CONTEXT: Previously the model failed with:\n${rejectionMemo.slice(0, 300)}]`
     : prompt;
 
-  const maxTokens = computeTokenBudget(augmentedUserPrompt, systemPrompt);
+  const maxTokens =
+    options?.budgetOverride ??
+    computeTokenBudget(augmentedUserPrompt, systemPrompt);
+
+  const inputTokens = countTokens(systemPrompt + "\n" + augmentedUserPrompt);
 
   // Model hint from env
   const modelHint = process.env.MODEL;
@@ -119,8 +142,28 @@ async function sampleLLM(
     }
 
     const fullText = response.content.text;
-    logger.debug("Sampling response received", { length: fullText.length });
-    return fullText;
+    const outputTokens = countTokens(fullText);
+    const truncated = isTruncated(outputTokens, maxTokens);
+
+    if (truncated) {
+      logger.warn("Response may be truncated", {
+        outputTokens,
+        budget: maxTokens,
+        ratio: (outputTokens / maxTokens).toFixed(2),
+      });
+    }
+
+    logger.debug("Sampling response received", {
+      length: fullText.length,
+      outputTokens,
+      truncated,
+    });
+
+    return {
+      text: fullText,
+      tokenCount: { input: inputTokens, output: outputTokens, budget: maxTokens },
+      truncated,
+    };
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     logger.error("Sampling failed", { error: message });
@@ -183,13 +226,25 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
     });
 
     try {
-      const rawOutput = await sampleLLM(prompt, lastRejectionMemo, {
+      const samplingResult = await sampleLLM(prompt, lastRejectionMemo, {
         temperature,
         isRetry,
       });
-      lastRaw = rawOutput;
+      lastRaw = samplingResult.text;
 
-      const parsed = parseCoT(rawOutput);
+      if (samplingResult.truncated) {
+        lastRejectionMemo =
+          `[TRUNCATED] Your previous response hit the token limit (${samplingResult.tokenCount.output}/${samplingResult.tokenCount.budget}). ` +
+          "Please be more concise in your reasoning.\n\n" +
+          samplingResult.text.slice(0, 300);
+        logger.warn("Truncation detected, injecting conciseness hint", {
+          attempt,
+        });
+        if (attempt === MAX_RETRIES) break;
+        continue;
+      }
+
+      const parsed = parseCoT(samplingResult.text);
       if (parsed) {
         logger.info("CoT parsed successfully", {
           reasonLength: parsed.reasoning.length,
@@ -204,7 +259,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         };
       }
 
-      lastRejectionMemo = rawOutput.slice(0, 500);
+      lastRejectionMemo = samplingResult.text.slice(0, 500);
       logger.warn("Parse failed, storing rejection memo", {
         attempt,
         snippetLength: lastRejectionMemo.length,
