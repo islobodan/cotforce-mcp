@@ -491,7 +491,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
               {
                 type: "text",
                 text:
-                  `🤖 Agentic CoT Result:\n\n**Reasoning:** ${parsed.reasoning}\n\n**Answer:** ${formatResult(parsed.result)}` +
+                  `🤖 Agentic CoT Result:\n\n**Reasoning:** ${formatResult(parsed.reasoning)}\n\n**Answer:** ${formatResult(parsed.result)}` +
                   tokenMeta +
                   modelMeta,
               },
