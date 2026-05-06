@@ -59,7 +59,7 @@ The server is configured via environment variables (all optional):
 | `TEMP_INCREMENT` | `0.2` | Temperature added per retry attempt. |
 | `TIMEOUT` | `60000` | Sampling timeout in ms. |
 | `TRUNCATION_THRESHOLD` | `0.95` | Ratio of output/budget that triggers truncation warning and conciseness retry. |
-| `REASONING_OVERHEAD` | `650` | Fixed token overhead added to the budget formula. Increase for verbose models. |
+| `REASONING_OVERHEAD` | `800` | Fixed token overhead added to the budget formula. Increase for verbose models. |
 | `FALLBACK_MODELS` | *(not set)* | Comma-separated list of fallback models (e.g. `gpt-4o,claude-3-5-sonnet`). Cycled on failure. |
 | `MODE` | `auto` | `auto`, `sampling`, or `direct`. `auto` uses direct HTTP when `API_KEY` is set and client lacks sampling support. |
 | `API_KEY` | *(not set)* | LLM API key for direct HTTP mode. Optional for local endpoints (LMStudio, Ollama). Required for remote providers (OpenAI, Anthropic, etc.). |

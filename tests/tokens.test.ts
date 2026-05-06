@@ -47,12 +47,12 @@ describe("countTokens", () => {
 describe("computeTokenBudget", () => {
   it("returns at least the minimum budget", () => {
     const { budget } = computeTokenBudget("hi", "system");
-    expect(budget).toBeGreaterThanOrEqual(1024);
+    expect(budget).toBeGreaterThanOrEqual(2048);
   });
 
   it("returns at most the maximum budget", () => {
     const { budget } = computeTokenBudget("x".repeat(10000), "system");
-    expect(budget).toBeLessThanOrEqual(4096);
+    expect(budget).toBeLessThanOrEqual(8192);
   });
 
   it("increases budget with input size", () => {
