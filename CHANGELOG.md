@@ -15,7 +15,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **User-supplied result schema** — optional `resultSchema` parameter on `solve_problem` validates the `result` field against a simple type-map (`{ key: "string" | "number" | "boolean" | "object" }`). Supports nested objects. Mismatches trigger retry.
 - **Model-specific prompts** — `getSystemPrompt()` selects tuned system prompts for Claude, GPT-4, Gemini, and Grok based on `MODEL` env. Falls back to default for unknown models.
 - **Fallback models** — `FALLBACK_MODELS=gpt-4o,claude-3-5-sonnet` cycles to next model on failure. Each model gets `MAX_RETRIES+1` attempts.
-- Comprehensive test suite: 90+ tests across parser, tokens, metrics, schema validation, prompts, and server integration
+- **Direct LLM HTTP client** — `MODE=auto/direct` with `API_KEY` enables OpenAI-compatible direct HTTP calls for MCP clients without sampling support (LMStudio, VS Code extensions, etc.). Supports any OpenAI-compatible provider.
+- Comprehensive test suite: 95+ tests across parser, tokens, metrics, schema validation, prompts, LLM client, and server integration
 - Extracted library modules: `src/lib/parser.ts`, `src/lib/tokens.ts`, `src/lib/prompts.ts`, `src/lib/metrics.ts`
 - `@slbdn/mcp-tester` integration for MCP server testing
 - Jest + ts-jest ESM test runner configuration

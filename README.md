@@ -22,7 +22,7 @@
 - **Token budgeting with tiktoken** — accurate token counting using OpenAI's `cl100k_base` encoding, with fallback to character heuristic. Tweak via `REASONING_OVERHEAD`.
 - **Configurable model** — set `MODEL` environment variable to hint a specific model; leave unset for host default.
 - **Model-specific prompts** — automatically selects tuned system prompts for Claude, GPT-4, Gemini, and Grok based on `MODEL`.
-- **Fallback models** — `FALLBACK_MODELS=gpt-4o,claude-3-5-sonnet` cycles to next model on failure.
+- **Universal compatibility** — works with MCP sampling (Claude Desktop) **or** direct LLM HTTP calls (OpenAI, LMStudio, Ollama, any OpenAI-compatible API). Set `API_KEY` to use direct mode.
 - **Structured logging** — timestamped, level‑filtered logs to stderr (supports `LOG_LEVEL`).
 - **Output truncation detection** — detects when the LLM response hits the token limit and retries with a conciseness hint (`TRUNCATION_THRESHOLD`).
 - **Token usage exposure** — every response includes input / output / budget token counts so callers can optimize.
@@ -61,6 +61,9 @@ The server is configured via environment variables (all optional):
 | `TRUNCATION_THRESHOLD` | `0.95` | Ratio of output/budget that triggers truncation warning and conciseness retry. |
 | `REASONING_OVERHEAD` | `650` | Fixed token overhead added to the budget formula. Increase for verbose models. |
 | `FALLBACK_MODELS` | *(not set)* | Comma-separated list of fallback models (e.g. `gpt-4o,claude-3-5-sonnet`). Cycled on failure. |
+| `MODE` | `auto` | `auto`, `sampling`, or `direct`. `auto` uses direct HTTP when `API_KEY` is set and client lacks sampling support. |
+| `API_KEY` | *(not set)* | LLM API key for direct HTTP mode. Enables OpenAI-compatible providers (OpenAI, LMStudio, Ollama, etc.). |
+| `API_BASE_URL` | `https://api.openai.com` | Base URL for direct HTTP mode. Change for LMStudio (`http://localhost:1234/v1`) or other providers. |
 | `LOG_LEVEL` | `INFO` | One of `DEBUG`, `INFO`, `WARN`, `ERROR`. |
 
 ### Example
@@ -77,6 +80,7 @@ MODEL=gpt-4o MAX_RETRIES=3 BASE_TEMP=0.2 TEMP_INCREMENT=0.15 LOG_LEVEL=DEBUG npx
 
 Add to your MCP client configuration (e.g. Claude Desktop, `claude_desktop_config.json`):
 
+**With MCP sampling** (Claude Desktop):
 ```json
 {
   "mcpServers": {
@@ -85,7 +89,25 @@ Add to your MCP client configuration (e.g. Claude Desktop, `claude_desktop_confi
       "args": ["/path/to/cotforce-mcp/index.js"],
       "env": {
         "MODEL": "claude-3-5-sonnet",
-        "FALLBACK_MODELS": "gpt-4o,gemini-1-5-pro",
+        "MAX_RETRIES": "2"
+      }
+    }
+  }
+}
+```
+
+**With direct LLM HTTP** (LMStudio, OpenAI, Ollama):
+```json
+{
+  "mcpServers": {
+    "cotforce": {
+      "command": "node",
+      "args": ["/path/to/cotforce-mcp/index.js"],
+      "env": {
+        "MODE": "direct",
+        "API_KEY": "your-api-key",
+        "API_BASE_URL": "http://localhost:1234/v1",
+        "MODEL": "local-model",
         "MAX_RETRIES": "2"
       }
     }

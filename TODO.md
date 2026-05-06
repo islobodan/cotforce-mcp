@@ -21,8 +21,8 @@ Based on the honest value review, here are actionable improvements, organized by
 
 ## 🔴 Critical (Must Fix for Production Readiness)
 
-- [ ] **Support clients without MCP sampling**  
-  Add a direct LLM HTTP client mode (OpenAI/Anthropic API) so CotForce works with MCP clients that don't support `sampling/createMessage` (e.g., LMStudio, some VS Code extensions). Use `API_KEY` + `API_BASE_URL` env vars; fallback to MCP sampling when available.
+- [x] **Support clients without MCP sampling**  
+  ✅ `MODE=auto/direct` with `API_KEY` and `API_BASE_URL` enables direct OpenAI-compatible HTTP calls. `auto` automatically falls back to direct HTTP when client lacks sampling support. Works with LMStudio, VS Code extensions, and any OpenAI-compatible provider.
 
 - [ ] **Implement true streaming**  
   Replace the `stream: true` flag with actual token‑by‑token emission using SSE or WebSocket transport. The current `server.request` does not support streaming; use lower‑level transport or MCP notifications to push partial CoT text.

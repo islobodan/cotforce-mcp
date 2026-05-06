@@ -29,6 +29,7 @@ import {
   recordTokenUsage,
   recordTruncation,
 } from "./lib/metrics.js";
+import { callDirectLLM, isDirectModeConfigured } from "./lib/llm.js";
 
 // ------------------------------------------------------------------
 // 1. LOGGING (Structured, with levels)
@@ -86,14 +87,13 @@ function checkSamplingCapability(): void {
 }
 
 function assertSamplingSupported(): void {
-  if (!clientSamplingSupported) {
-    throw new McpError(
-      ErrorCode.InternalError,
-      "CotForce requires MCP sampling support (sampling/createMessage), but the connected client does not advertise this capability. " +
-        "Please use an MCP client that supports LLM sampling (e.g., Claude Desktop), " +
-        "or configure a direct LLM provider via HTTP instead of MCP sampling."
-    );
-  }
+  if (clientSamplingSupported) return;
+  if (isDirectModeConfigured()) return; // direct HTTP will be used instead
+  throw new McpError(
+    ErrorCode.InternalError,
+    "CotForce requires either (a) an MCP client with sampling support, or (b) a direct LLM API key. " +
+      "Set API_KEY (and optionally API_BASE_URL) to use direct HTTP mode, or use a client like Claude Desktop that supports sampling."
+  );
 }
 
 // ------------------------------------------------------------------
@@ -160,6 +160,17 @@ function getFallbackModels(): string[] {
   return raw.split(",").map((m) => m.trim()).filter(Boolean);
 }
 
+function shouldUseDirectMode(): boolean {
+  const mode = (process.env.MODE || "auto").toLowerCase();
+  if (mode === "direct") return true;
+  if (mode === "sampling") return false;
+  // auto: use direct if configured and client lacks sampling support
+  if (mode === "auto") {
+    return isDirectModeConfigured() && !clientSamplingSupported;
+  }
+  return false;
+}
+
 async function sampleLLM(
   prompt: string,
   rejectionMemo: string | null,
@@ -192,16 +203,69 @@ async function sampleLLM(
 
   const inputTokens = countTokens(systemPrompt + "\n" + augmentedUserPrompt);
 
-  const modelPreferences = modelHint
-    ? { hints: [{ name: modelHint }] }
-    : undefined;
-
   logger.debug("Sampling request", {
     temperature,
     maxTokens,
     modelHint: modelHint || "none",
     isRetry: options?.isRetry,
+    mode: shouldUseDirectMode() ? "direct" : "mcp-sampling",
   });
+
+  // ------------------------------------------------------------------
+  // Direct HTTP mode (for clients without MCP sampling support)
+  // ------------------------------------------------------------------
+  if (shouldUseDirectMode()) {
+    const apiKey = process.env.API_KEY!;
+    const baseUrl = process.env.API_BASE_URL || "https://api.openai.com";
+    const model = modelHint || "gpt-4o";
+
+    try {
+      const result = await callDirectLLM({
+        systemPrompt,
+        userPrompt: augmentedUserPrompt,
+        model,
+        maxTokens,
+        temperature,
+        apiKey,
+        baseUrl,
+      });
+
+      const fullText = result.text;
+      const outputTokens = result.usage?.completion_tokens ?? countTokens(fullText);
+      const truncated = isTruncated(outputTokens, maxTokens);
+
+      if (truncated) {
+        logger.warn("Response may be truncated", {
+          outputTokens,
+          budget: maxTokens,
+          ratio: (outputTokens / maxTokens).toFixed(2),
+        });
+      }
+
+      logger.debug("Sampling response received", {
+        length: fullText.length,
+        outputTokens,
+        truncated,
+      });
+
+      return {
+        text: fullText,
+        tokenCount: { input: inputTokens, output: outputTokens, budget: maxTokens },
+        truncated,
+      };
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      logger.error("Direct LLM call failed", { error: message });
+      throw new McpError(ErrorCode.InternalError, `Direct LLM call failed: ${message}`);
+    }
+  }
+
+  // ------------------------------------------------------------------
+  // MCP sampling mode (default, requires client support)
+  // ------------------------------------------------------------------
+  const modelPreferences = modelHint
+    ? { hints: [{ name: modelHint }] }
+    : undefined;
 
   try {
     const response = await server.createMessage(
@@ -501,8 +565,15 @@ async function main(): Promise<void> {
     );
   }
 
+  const mode = process.env.MODE || "auto";
+  const directConfigured = isDirectModeConfigured();
+  const effectiveMode = shouldUseDirectMode() ? "direct" : "mcp-sampling";
+
   logger.info("CotForce-MCP server started", {
     model: process.env.MODEL || "not set (host default)",
+    mode,
+    effectiveMode,
+    directConfigured,
     maxRetries: parseInt(process.env.MAX_RETRIES || "2", 10),
     baseTemp: parseFloat(process.env.BASE_TEMP || "0.1"),
     tempIncrement: parseFloat(process.env.TEMP_INCREMENT || "0.2"),
