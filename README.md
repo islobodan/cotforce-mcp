@@ -62,7 +62,7 @@ The server is configured via environment variables (all optional):
 | `REASONING_OVERHEAD` | `650` | Fixed token overhead added to the budget formula. Increase for verbose models. |
 | `FALLBACK_MODELS` | *(not set)* | Comma-separated list of fallback models (e.g. `gpt-4o,claude-3-5-sonnet`). Cycled on failure. |
 | `MODE` | `auto` | `auto`, `sampling`, or `direct`. `auto` uses direct HTTP when `API_KEY` is set and client lacks sampling support. |
-| `API_KEY` | *(not set)* | LLM API key for direct HTTP mode. Enables OpenAI-compatible providers (OpenAI, LMStudio, Ollama, etc.). |
+| `API_KEY` | *(not set)* | LLM API key for direct HTTP mode. Optional for local endpoints (LMStudio, Ollama). Required for remote providers (OpenAI, Anthropic, etc.). |
 | `API_BASE_URL` | `https://api.openai.com` | Base URL for direct HTTP mode. Change for LMStudio (`http://localhost:1234/v1`) or other providers. |
 | `LOG_LEVEL` | `INFO` | One of `DEBUG`, `INFO`, `WARN`, `ERROR`. |
 
@@ -105,7 +105,6 @@ Add to your MCP client configuration (e.g. Claude Desktop, `claude_desktop_confi
       "args": ["/path/to/cotforce-mcp/index.js"],
       "env": {
         "MODE": "direct",
-        "API_KEY": "your-api-key",
         "API_BASE_URL": "http://localhost:1234/v1",
         "MODEL": "local-model",
         "MAX_RETRIES": "2"
@@ -114,6 +113,8 @@ Add to your MCP client configuration (e.g. Claude Desktop, `claude_desktop_confi
   }
 }
 ```
+
+> **Note:** `API_KEY` is optional for local endpoints like LMStudio or Ollama. It is required for remote providers like OpenAI or Anthropic.
 
 > The root `index.js` is a launcher that delegates to `dist/index.js`. It guards against missing builds with a helpful error message.
 

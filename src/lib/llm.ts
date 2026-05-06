@@ -38,12 +38,16 @@ export async function callDirectLLM(
     temperature: options.temperature,
   };
 
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+  };
+  if (options.apiKey) {
+    headers.Authorization = `Bearer ${options.apiKey}`;
+  }
+
   const response = await fetch(url, {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${options.apiKey}`,
-    },
+    headers,
     body: JSON.stringify(body),
   });
 
@@ -74,5 +78,9 @@ export async function callDirectLLM(
 }
 
 export function isDirectModeConfigured(): boolean {
-  return Boolean(process.env.API_KEY);
+  const mode = (process.env.MODE || "auto").toLowerCase();
+  if (mode === "direct") return true;
+  if (mode === "sampling") return false;
+  // auto: direct if API_KEY is set, or API_BASE_URL is set (local endpoint)
+  return Boolean(process.env.API_KEY) || Boolean(process.env.API_BASE_URL);
 }

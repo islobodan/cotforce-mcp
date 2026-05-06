@@ -88,11 +88,12 @@ function checkSamplingCapability(): void {
 
 function assertSamplingSupported(): void {
   if (clientSamplingSupported) return;
-  if (isDirectModeConfigured()) return; // direct HTTP will be used instead
+  if (shouldUseDirectMode()) return; // direct HTTP will be used instead
   throw new McpError(
     ErrorCode.InternalError,
-    "CotForce requires either (a) an MCP client with sampling support, or (b) a direct LLM API key. " +
-      "Set API_KEY (and optionally API_BASE_URL) to use direct HTTP mode, or use a client like Claude Desktop that supports sampling."
+    "CotForce requires either (a) an MCP client with sampling support, or (b) a direct LLM endpoint. " +
+      "Set API_KEY and API_BASE_URL for remote providers, or just API_BASE_URL for local endpoints like LMStudio/Ollama. " +
+      "Alternatively, set MODE=direct to force direct HTTP mode."
   );
 }
 
@@ -215,7 +216,7 @@ async function sampleLLM(
   // Direct HTTP mode (for clients without MCP sampling support)
   // ------------------------------------------------------------------
   if (shouldUseDirectMode()) {
-    const apiKey = process.env.API_KEY!;
+    const apiKey = process.env.API_KEY || "";
     const baseUrl = process.env.API_BASE_URL || "https://api.openai.com";
     const model = modelHint || "gpt-4o";
 
