@@ -37,6 +37,18 @@ Based on the honest value review, here are actionable improvements, organized by
 
 ## 🟠 High (Significant Reliability & Usability Gains)
 
+- [ ] **Fix section comment numbering in `index.ts`**
+  Sections 3/4/5/6 have duplicate or out-of-order comment numbers (e.g., two `// 4.` sections). Renumber to match the actual order.
+
+- [ ] **Extract `MAX_RETRIES` constant**
+  `parseInt(process.env.MAX_RETRIES || "2", 10)` appears in two places (lines ~416 and ~467). Parse once and share.
+
+- [ ] **Replace silent `catch { /* ignore */ }` in parser**
+  All 4 parser try/catch blocks swallow errors. Add `logger.debug()` to enable debugging parse failures without breaking the fallback chain.
+
+- [ ] **Add `REJECTION_MEMO_MAX_LENGTH` constant**
+  Magic numbers 300 and 500 are used for slicing rejection memos in two places. Extract into a named constant.
+
 - [ ] **Multi-session rejection memory**
   Instead of a single rejection memo, store a sliding window of recent failures (e.g., last 5). Aggregate common failure patterns (e.g., "model outputs markdown blocks without JSON") and inject more targeted corrections.
 
@@ -58,6 +70,15 @@ Based on the honest value review, here are actionable improvements, organized by
 
 - [x] **Expose raw token usage in response**
   ✅ Appended to response text: `📊 Token Usage: X in / Y out / Z budget`. Available on both success and fallback responses.
+
+- [ ] **Preserve error stack traces in `McpError` wrappers**
+  `throw new McpError(ErrorCode.InternalError, message)` loses the original error stack. Use `{ cause: error }` to preserve it.
+
+- [ ] **Sanitize LLM error responses**
+  Error text from LLM API is passed verbatim to MCP client. Could leak API keys or internal paths. Redact `sk-...` patterns.
+
+- [ ] **Add test for the full retry loop**
+  The `attempt ≤ MAX_RETRIES` loop, fallback model cycling, and truncated/recovery/retry transitions are the most complex code paths but have no dedicated tests.
 
 - [ ] **Add rate limiting / concurrency control**
   Prevent overloading the LLM with concurrent requests. Use a simple semaphore or queue.
@@ -83,6 +104,18 @@ Based on the honest value review, here are actionable improvements, organized by
 
 - [x] **Publish to npm**  
   ✅ Package configured as `@slbdn/cotforce-mcp`. Ready to publish with `npm publish --access public`. Dry-run passes: 31 files, 36.2 kB.
+
+- [ ] **Lazy import `tiktoken`**
+  `tiktoken` is a ~2MB WASM dependency loaded at module level but only used in `countTokens()`, which rarely fires (prefers API `usage` data). Use dynamic `import()` to defer loading.
+
+- [ ] **Fix type assertions for `progressToken` and `sendNotification`**
+  Raw casts like `as { _meta?: ... }` and `as SendNotificationFn` bypass TypeScript safety. Use proper type narrowing or SDK types.
+
+- [ ] **Add test for progress notification delivery**
+  `createProgressSender` has no unit tests for edge cases (null token, out-of-order progress, debouncing).
+
+- [ ] **Protect concurrent access to metrics**
+  Metrics module mutates shared state without synchronization. Not an issue with stdio transport (sequential), but will race with SSE/WebSocket.
 
 ---
 
