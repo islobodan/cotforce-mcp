@@ -65,7 +65,12 @@ const logger = {
 };
 
 // ------------------------------------------------------------------
-// 2. SCHEMAS
+// 2. ENVIRONMENT CONSTANTS
+// ------------------------------------------------------------------
+const MAX_RETRIES = parseInt(process.env.MAX_RETRIES || "2", 10);
+
+// ------------------------------------------------------------------
+// 3. SCHEMAS
 // ------------------------------------------------------------------
 const SolveProblemArgsSchema = z.object({
   prompt: z.string().min(1, "prompt must not be empty"),
@@ -75,7 +80,7 @@ const SolveProblemArgsSchema = z.object({
 });
 
 // ------------------------------------------------------------------
-// 3. FORMATTING HELPERS
+// 4. FORMATTING HELPERS
 // ------------------------------------------------------------------
 function formatResult(result: unknown): string {
   if (result === null) return "null";
@@ -85,7 +90,7 @@ function formatResult(result: unknown): string {
 }
 
 // ------------------------------------------------------------------
-// 4. PROGRESS NOTIFICATIONS
+// 5. PROGRESS NOTIFICATIONS
 // ------------------------------------------------------------------
 type SendNotificationFn = (notification: unknown) => Promise<void>;
 
@@ -118,7 +123,7 @@ function createProgressSender(
 }
 
 // ------------------------------------------------------------------
-// 5. SAMPLING CAPABILITY CHECK
+// 6. SAMPLING CAPABILITY CHECK
 // ------------------------------------------------------------------
 let clientSamplingSupported = false;
 
@@ -142,7 +147,7 @@ function assertSamplingSupported(): void {
 }
 
 // ------------------------------------------------------------------
-// 6. RESULT SCHEMA VALIDATION
+// 7. RESULT SCHEMA VALIDATION
 // ------------------------------------------------------------------
 export function validateResultSchema(
   result: unknown,
@@ -179,7 +184,7 @@ export function validateResultSchema(
 }
 
 // ------------------------------------------------------------------
-// 7. SERVER INITIALIZATION
+// 8. SERVER INITIALIZATION
 // ------------------------------------------------------------------
 const server = new Server(
   { name: "cotforce-mcp", version: "1.0.0" },
@@ -187,7 +192,7 @@ const server = new Server(
 );
 
 // ------------------------------------------------------------------
-// 8. LLM SAMPLING FUNCTION (with retry logic, model env, temp_increment)
+// 9. LLM SAMPLING FUNCTION (with retry logic, model env, temp_increment)
 // ------------------------------------------------------------------
 interface SamplingResult {
   text: string;
@@ -370,7 +375,7 @@ async function sampleLLM(
 }
 
 // ------------------------------------------------------------------
-// 9. TOOL REGISTRATION
+// 10. TOOL REGISTRATION
 // ------------------------------------------------------------------
 server.setRequestHandler(ListToolsRequestSchema, async () => ({
   tools: [
@@ -397,14 +402,14 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
 }));
 
 // ------------------------------------------------------------------
-// 10. TOOL EXECUTION WITH CHAOS PROTOCOL
+// 11. TOOL EXECUTION WITH CHAOS PROTOCOL
 // ------------------------------------------------------------------
 server.setRequestHandler(CallToolRequestSchema, async (request, extra) => {
   const requestStart = Date.now();
   recordRequest();
 
   const progressToken = (request.params as { _meta?: { progressToken?: string | number } })._meta?.progressToken;
-  const totalSteps = (parseInt(process.env.MAX_RETRIES || "2", 10) + 1) * (getFallbackModels().length + 1);
+  const totalSteps = (MAX_RETRIES + 1) * (getFallbackModels().length + 1);
   const notifyProgress = createProgressSender(progressToken, extra.sendNotification as SendNotificationFn, totalSteps);
 
   if (request.params.name !== "solve_problem") {
@@ -429,7 +434,6 @@ server.setRequestHandler(CallToolRequestSchema, async (request, extra) => {
 
   const { prompt } = parseArgs.data;
 
-  const MAX_RETRIES = parseInt(process.env.MAX_RETRIES || "2", 10);
   const BASE_TEMP = parseFloat(process.env.BASE_TEMP || "0.1");
   const TEMP_INCREMENT = parseFloat(process.env.TEMP_INCREMENT || "0.2");
   const fallbackModels = getFallbackModels();
@@ -649,7 +653,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request, extra) => {
 });
 
 // ------------------------------------------------------------------
-// 11. START
+// 12. START
 // ------------------------------------------------------------------
 async function main(): Promise<void> {
   const transport = new StdioServerTransport();
@@ -671,7 +675,7 @@ async function main(): Promise<void> {
     mode,
     effectiveMode,
     directConfigured,
-    maxRetries: parseInt(process.env.MAX_RETRIES || "2", 10),
+    maxRetries: MAX_RETRIES,
     baseTemp: parseFloat(process.env.BASE_TEMP || "0.1"),
     tempIncrement: parseFloat(process.env.TEMP_INCREMENT || "0.2"),
     tiktoken: getEncodingSafe() ? "available" : "fallback to heuristic",
