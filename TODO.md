@@ -6,98 +6,98 @@ Based on the honest value review, here are actionable improvements, organized by
 
 ## ✅ Quick Wins (Implemented)
 
-- [x] **Fix TypeScript setup** — converted `index.js` to `src/index.ts` with strict `tsconfig.json`, proper ESM/NodeNext resolution, and build output to `dist/`.
-- [x] **Add `.gitignore` and `LICENSE`** — standard Node `.gitignore` and MIT `LICENSE` file added.
-- [x] **Add Zod runtime validation** — tool arguments now validated with `SolveProblemArgsSchema`; parsed CoT output validated with `AgenticCotSchema` in all parser layers.
-- [x] **Scope `rejectionMemo` per-request** — removed global mutable `rejectionMemo`; now passed as a parameter to `sampleLLM`, preventing race conditions under concurrent calls.
-- [x] **Remove broken `STREAM` env flag** — MCP Node.js SDK does not support streaming responses. Removed the inert `stream` param and `STREAM` env var from code.
-- [x] **Replace Layer 4 regex with brace-balancing scanner** — new `extractBalancedJson()` properly handles nested braces and strings, fixing false matches on nested JSON objects.
-- [x] **Fix `McpError` constructor usage** — was passing `(stringMessage, stringCode)`; now uses `(ErrorCode, message)` correctly per SDK signature.
-- [x] **Fix sampling method name** — changed from incorrect `sampling/create` to correct `sampling/createMessage` via `server.createMessage()` API.
-- [x] **Fix response content parsing** — `CreateMessageResult.content` is a single discriminated union object, not an array. Now reads `response.content.text` directly after type narrowing.
-- [x] **Fix system prompt delivery** — MCP schema only allows `user`/`assistant` message roles. Moved system prompt to the dedicated `systemPrompt` param in `createMessage`.
+- [x] **Fix TypeScript setup** - converted `index.js` to `src/index.ts` with strict `tsconfig.json`, proper ESM/NodeNext resolution, and build output to `dist/`.
+- [x] **Add `.gitignore` and `LICENSE`** - standard Node `.gitignore` and MIT `LICENSE` file added.
+- [x] **Add Zod runtime validation** - tool arguments now validated with `SolveProblemArgsSchema`; parsed CoT output validated with `AgenticCotSchema` in all parser layers.
+- [x] **Scope `rejectionMemo` per-request** - removed global mutable `rejectionMemo`; now passed as a parameter to `sampleLLM`, preventing race conditions under concurrent calls.
+- [x] **Remove broken `STREAM` env flag** - MCP Node.js SDK does not support streaming responses. Removed the inert `stream` param and `STREAM` env var from code.
+- [x] **Replace Layer 4 regex with brace-balancing scanner** - new `extractBalancedJson()` properly handles nested braces and strings, fixing false matches on nested JSON objects.
+- [x] **Fix `McpError` constructor usage** - was passing `(stringMessage, stringCode)`; now uses `(ErrorCode, message)` correctly per SDK signature.
+- [x] **Fix sampling method name** - changed from incorrect `sampling/create` to correct `sampling/createMessage` via `server.createMessage()` API.
+- [x] **Fix response content parsing** - `CreateMessageResult.content` is a single discriminated union object, not an array. Now reads `response.content.text` directly after type narrowing.
+- [x] **Fix system prompt delivery** - MCP schema only allows `user`/`assistant` message roles. Moved system prompt to the dedicated `systemPrompt` param in `createMessage`.
 
 ---
 
 ## 🔴 Critical (Must Fix for Production Readiness)
 
-- [x] **Support clients without MCP sampling**  
+- [x] **Support clients without MCP sampling**
   ✅ `MODE=auto/direct` with `API_KEY` and `API_BASE_URL` enables direct OpenAI-compatible HTTP calls. `auto` automatically falls back to direct HTTP when client lacks sampling support. Works with LMStudio, VS Code extensions, and any OpenAI-compatible provider.
 
-- [ ] **Implement true streaming**  
-  Replace the `stream: true` flag with actual token‑by‑token emission using SSE or WebSocket transport. The current `server.request` does not support streaming; use lower‑level transport or MCP notifications to push partial CoT text.
+- [ ] **Implement true streaming**
+  Replace the `stream: true` flag with actual token-by-token emission using SSE or WebSocket transport. The current `server.request` does not support streaming; use lower-level transport or MCP notifications to push partial CoT text.
 
-- [x] **Add output truncation detection**  
+- [x] **Add output truncation detection**
   ✅ `TRUNCATION_THRESHOLD` env var (default 0.95). Detects truncation via `finish_reason: "length"` and token ratio. Recovery-first strategy: tries to parse truncated JSON before retrying with 1.5x budget.
 
-- [x] **Integrate structured monitoring/metrics**  
+- [x] **Integrate structured monitoring/metrics**
   ✅ `src/lib/metrics.ts` tracks total requests, successes, failures, truncations, retries, sampling errors, parse latency, and average token usage. Snapshot logged on shutdown.
 
 ---
 
 ## 🟠 High (Significant Reliability & Usability Gains)
 
-- [ ] **Multi‑session rejection memory**  
-  Instead of a single rejection memo, store a sliding window of recent failures (e.g., last 5). Aggregate common failure patterns (e.g., “model outputs markdown blocks without JSON”) and inject more targeted corrections.
+- [ ] **Multi-session rejection memory**
+  Instead of a single rejection memo, store a sliding window of recent failures (e.g., last 5). Aggregate common failure patterns (e.g., "model outputs markdown blocks without JSON") and inject more targeted corrections.
 
-- [x] **Validate output against a user‑supplied schema**  
+- [x] **Validate output against a user-supplied schema**
   ✅ Optional `resultSchema` parameter on `solve_problem` with simple type-map validation (`string`, `number`, `boolean`, `object`). Supports nested schemas. Mismatch triggers retry.
 
-- [x] **Token budget fine‑tuning**  
+- [x] **Token budget fine-tuning**
   ✅ `REASONING_OVERHEAD` env var (default 800). Budget formula: `overhead + inputTokens × 4`, min 2048, max 8192. `computeTokenBudget()` returns `{ budget, inputTokens }` to eliminate duplicate counting. Added `estimateTokens()` lightweight heuristic.
 
-- [x] **Graceful handling of model‑specific quirks**  
+- [x] **Graceful handling of model-specific quirks**
   ✅ `getSystemPrompt()` selects tuned prompts for Claude, GPT-4, Gemini, Grok. Falls back to default for unknown models.
 
 ---
 
-## 🟡 Medium (Nice‑to‑Haves for Power Users)
+## 🟡 Medium (Nice-to-Haves for Power Users)
 
-- [x] **Retry with different model**  
+- [x] **Retry with different model**
   ✅ `FALLBACK_MODELS=gpt-4o,claude-3-5-sonnet` cycles through models on failure. Each gets `MAX_RETRIES+1` attempts.
 
-- [x] **Expose raw token usage in response**  
+- [x] **Expose raw token usage in response**
   ✅ Appended to response text: `📊 Token Usage: X in / Y out / Z budget`. Available on both success and fallback responses.
 
-- [ ] **Add rate limiting / concurrency control**  
+- [ ] **Add rate limiting / concurrency control**
   Prevent overloading the LLM with concurrent requests. Use a simple semaphore or queue.
 
-- [ ] **Support for chat‑style multi‑turn CoT**  
+- [ ] **Support for chat-style multi-turn CoT**
   Allow the tool to accept a `history` parameter (previous messages) so the LLM can build on prior reasoning. Useful for iterative problem solving.
 
 ---
 
 ## 🟢 Low (Cosmetic / Dev Experience)
 
-- [ ] **Add progress notifications for long CoT**  
-  While streaming is not available, at least send periodic `$message` notifications to the MCP client (if supported) to indicate “still thinking”.
+- [x] **Add progress notifications for long CoT**  
+  ✅ Sends `notifications/progress` when client provides `_meta.progressToken`. Reports step number, total steps, and human-readable messages at key stages (LLM call, truncation recovery, parse success, model switch).
 
-- [ ] **Improve few‑shot examples**  
+- [ ] **Improve few-shot examples**
   Include more diverse examples (arithmetic, logic, creative writing) in the system prompt to cover a wider range of problem types.
 
-- [x] **Write integration tests with real LLMs**  
+- [x] **Write integration tests with real LLMs**
   ✅ Comprehensive test suite with 112 tests covering parser layers (including truncated JSON recovery), token budgeting, and MCP server integration via `@slbdn/mcp-tester`.
 
-- [x] **Create a `CONTRIBUTING.md`**  
+- [x] **Create a `CONTRIBUTING.md`**
   ✅ Architecture documented in README.md with `src/lib/` module descriptions.
 
-- [ ] **Publish to npm**  
+- [ ] **Publish to npm**
   Automate CI/CD and publish as `cotforce-mcp` for easy installation.
 
 ---
 
 ## 🔮 Future / Experimental
 
-- [ ] **Self‑optimizing prompt generator**  
+- [ ] **Self-optimizing prompt generator**
   Use the rejection log to automatically rewrite the system prompt (e.g., via another LLM call) to close recurring failure patterns.
 
-- [ ] **Plug‑in architecture for parsers**  
+- [ ] **Plug-in architecture for parsers**
   Allow users to write custom parser modules (e.g., YAML, CSV) without modifying core code.
 
-- [ ] **Tool‑specific CoT caching**  
+- [ ] **Tool-specific CoT caching**
   Cache successful CoT results for identical prompts (with TTL) to reduce LLM calls for repeated tasks.
 
 ---
 
-**How to contribute?**  
-Pick an item from the `🔴 Critical` or `🟠 High` list, and submit a PR. Each improvement should include tests and updated documentation. Let’s turn CotForce‑MCP from a prototype into a robust, production‑ready binding.
+**How to contribute?**
+Pick an item from the `🔴 Critical` or `🟠 High` list, and submit a PR. Each improvement should include tests and updated documentation. Let's turn CotForce-MCP from a prototype into a robust, production-ready binding.
