@@ -213,6 +213,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
   const TEMP_INCREMENT = parseFloat(process.env.TEMP_INCREMENT || "0.2");
   let lastRaw: string | null = null;
   let lastRejectionMemo: string | null = null;
+  let lastTokenCount: SamplingResult["tokenCount"] | null = null;
 
   for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
     const temperature =
@@ -231,6 +232,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         isRetry,
       });
       lastRaw = samplingResult.text;
+      lastTokenCount = samplingResult.tokenCount;
 
       if (samplingResult.truncated) {
         lastRejectionMemo =
@@ -249,11 +251,16 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         logger.info("CoT parsed successfully", {
           reasonLength: parsed.reasoning.length,
         });
+        const tokenMeta = lastTokenCount
+          ? `\n\n📊 Token Usage: ${lastTokenCount.input} in / ${lastTokenCount.output} out / ${lastTokenCount.budget} budget`
+          : "";
         return {
           content: [
             {
               type: "text",
-              text: `🤖 Agentic CoT Result:\n\n**Reasoning:** ${parsed.reasoning}\n\n**Answer:** ${parsed.result}`,
+              text:
+                `🤖 Agentic CoT Result:\n\n**Reasoning:** ${parsed.reasoning}\n\n**Answer:** ${parsed.result}` +
+                tokenMeta,
             },
           ],
         };
@@ -282,11 +289,16 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
   }
 
   logger.warn("Returning raw output fallback after all retries");
+  const tokenMeta = lastTokenCount
+    ? `\n\n📊 Token Usage: ${lastTokenCount.input} in / ${lastTokenCount.output} out / ${lastTokenCount.budget} budget`
+    : "";
   return {
     content: [
       {
         type: "text",
-        text: `⚠️ Agentic CoT could not be parsed after ${MAX_RETRIES + 1} attempts. Raw LLM output:\n\n${lastRaw || "No output"}`,
+        text:
+          `⚠️ Agentic CoT could not be parsed after ${MAX_RETRIES + 1} attempts. Raw LLM output:\n\n${lastRaw || "No output"}` +
+          tokenMeta,
       },
     ],
     isError: false,
