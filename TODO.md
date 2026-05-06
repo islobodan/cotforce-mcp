@@ -28,7 +28,7 @@ Based on the honest value review, here are actionable improvements, organized by
   Replace the `stream: true` flag with actual token‑by‑token emission using SSE or WebSocket transport. The current `server.request` does not support streaming; use lower‑level transport or MCP notifications to push partial CoT text.
 
 - [x] **Add output truncation detection**  
-  ✅ `TRUNCATION_THRESHOLD` env var (default 0.95). Detects when output/budget ratio exceeds threshold, logs warning, injects conciseness hint into rejection memo, and retries.
+  ✅ `TRUNCATION_THRESHOLD` env var (default 0.95). Detects truncation via `finish_reason: "length"` and token ratio. Recovery-first strategy: tries to parse truncated JSON before retrying with 1.5x budget.
 
 - [x] **Integrate structured monitoring/metrics**  
   ✅ `src/lib/metrics.ts` tracks total requests, successes, failures, truncations, retries, sampling errors, parse latency, and average token usage. Snapshot logged on shutdown.
@@ -44,7 +44,7 @@ Based on the honest value review, here are actionable improvements, organized by
   ✅ Optional `resultSchema` parameter on `solve_problem` with simple type-map validation (`string`, `number`, `boolean`, `object`). Supports nested schemas. Mismatch triggers retry.
 
 - [x] **Token budget fine‑tuning**  
-  ✅ `REASONING_OVERHEAD` env var added (default 650). Allows manual tuning of the fixed overhead in budget computation.
+  ✅ `REASONING_OVERHEAD` env var (default 800). Budget formula: `overhead + inputTokens × 4`, min 2048, max 8192. `computeTokenBudget()` returns `{ budget, inputTokens }` to eliminate duplicate counting. Added `estimateTokens()` lightweight heuristic.
 
 - [x] **Graceful handling of model‑specific quirks**  
   ✅ `getSystemPrompt()` selects tuned prompts for Claude, GPT-4, Gemini, Grok. Falls back to default for unknown models.
@@ -76,7 +76,7 @@ Based on the honest value review, here are actionable improvements, organized by
   Include more diverse examples (arithmetic, logic, creative writing) in the system prompt to cover a wider range of problem types.
 
 - [x] **Write integration tests with real LLMs**  
-  ✅ Comprehensive test suite with 65+ tests covering parser layers, token budgeting, and MCP server integration via `@slbdn/mcp-tester`.
+  ✅ Comprehensive test suite with 112 tests covering parser layers (including truncated JSON recovery), token budgeting, and MCP server integration via `@slbdn/mcp-tester`.
 
 - [x] **Create a `CONTRIBUTING.md`**  
   ✅ Architecture documented in README.md with `src/lib/` module descriptions.

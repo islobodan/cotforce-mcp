@@ -58,7 +58,7 @@ The server is configured via environment variables (all optional):
 | `BASE_TEMP` | `0.1` | Initial sampling temperature. |
 | `TEMP_INCREMENT` | `0.2` | Temperature added per retry attempt. |
 | `TIMEOUT` | `60000` | Sampling timeout in ms. |
-| `TRUNCATION_THRESHOLD` | `0.95` | Ratio of output/budget that triggers truncation warning and conciseness retry. |
+| `TRUNCATION_THRESHOLD` | `0.95` | Ratio of output/budget that triggers truncation detection. Attempts truncated JSON recovery first, then retries with 1.5x budget. |
 | `REASONING_OVERHEAD` | `800` | Fixed token overhead added to the budget formula. Increase for verbose models. |
 | `FALLBACK_MODELS` | *(not set)* | Comma-separated list of fallback models (e.g. `gpt-4o,claude-3-5-sonnet`). Cycled on failure. |
 | `MODE` | `auto` | `auto`, `sampling`, or `direct`. `auto` uses direct HTTP when `API_KEY` is set and client lacks sampling support. |
@@ -161,7 +161,7 @@ See [EXAMPLES.md](EXAMPLES.md) for 16 diverse examples including:
 {
   "content": [{
     "type": "text",
-    "text": "🤖 Agentic CoT Result:\n\n**Reasoning:** Step 1: Multiply 7 * 8 = 56. Step 2: Add 2 to get 58.\n\n**Answer:** 58\n\n📊 Token Usage: 42 in / 150 out / 1024 budget"
+    "text": "🤖 Agentic CoT Result:\n\n**Reasoning:** Step 1: Multiply 7 * 8 = 56. Step 2: Add 2 to get 58.\n\n**Answer:** 58\n\n📊 Token Usage: 42 in / 150 out / 2048 budget"
   }]
 }
 ```
@@ -231,7 +231,7 @@ cotforce-mcp/
 2. **Multi‑layer parser** attempts to extract valid JSON from the raw response (direct JSON, fenced blocks, XML/labels, brace-balancing scanner).
 3. **Retry logic** — if parsing fails, injects correction suffix and increases temperature. Supports fallback models (`FALLBACK_MODELS`) when primary model refuses.
 4. **Rejection memory** stores a snippet of the last failure to contextualise the next call (scoped per‑request, thread‑safe).
-5. **Token budgeting** uses `tiktoken` to estimate input tokens and sets `maxTokens` dynamically (capped between 1024 and 4096). Detects truncation and retries with conciseness hint.
+5. **Token budgeting** uses `estimateTokens()` (lightweight heuristic) for budget math and `countTokens()` (tiktoken) for exact counts. Sets `maxTokens` dynamically (between 2048 and 8192) via formula `overhead + inputTokens × 4`. Detects truncation via `finish_reason: "length"` and attempts JSON recovery before retrying.
 
 ---
 
@@ -253,7 +253,7 @@ npm run typecheck  # type-check src/ and tests/
 | `npm run build` | Compile TypeScript (`src/` → `dist/`) |
 | `npm run dev` | Watch mode compilation |
 | `npm run typecheck` | TypeScript type-checking for source and tests |
-| `npm test` | Run full Jest test suite (95+ tests) |
+| `npm test` | Run full Jest test suite (112 tests) |
 | `npm run test:smoke` | Quick smoke test via `mcp-tester` CLI |
 | `npm run test:tools` | List available tools via `mcp-tester` CLI |
 
