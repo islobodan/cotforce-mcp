@@ -74,7 +74,17 @@ const SolveProblemArgsSchema = z.object({
 });
 
 // ------------------------------------------------------------------
-// 3. SAMPLING CAPABILITY CHECK
+// 3. FORMATTING HELPERS
+// ------------------------------------------------------------------
+function formatResult(result: unknown): string {
+  if (result === null) return "null";
+  if (result === undefined) return "undefined";
+  if (typeof result === "object") return JSON.stringify(result, null, 2);
+  return String(result);
+}
+
+// ------------------------------------------------------------------
+// 4. SAMPLING CAPABILITY CHECK
 // ------------------------------------------------------------------
 let clientSamplingSupported = false;
 
@@ -481,7 +491,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
               {
                 type: "text",
                 text:
-                  `🤖 Agentic CoT Result:\n\n**Reasoning:** ${parsed.reasoning}\n\n**Answer:** ${parsed.result}` +
+                  `🤖 Agentic CoT Result:\n\n**Reasoning:** ${parsed.reasoning}\n\n**Answer:** ${formatResult(parsed.result)}` +
                   tokenMeta +
                   modelMeta,
               },
