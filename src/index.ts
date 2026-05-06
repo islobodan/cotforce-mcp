@@ -130,6 +130,12 @@ interface SamplingResult {
   truncated: boolean;
 }
 
+function getFallbackModels(): string[] {
+  const raw = process.env.FALLBACK_MODELS;
+  if (!raw) return [];
+  return raw.split(",").map((m) => m.trim()).filter(Boolean);
+}
+
 async function sampleLLM(
   prompt: string,
   rejectionMemo: string | null,
@@ -137,6 +143,7 @@ async function sampleLLM(
     temperature?: number;
     isRetry?: boolean;
     budgetOverride?: number;
+    modelOverride?: string;
   }
 ): Promise<SamplingResult> {
   const baseTemp = parseFloat(process.env.BASE_TEMP || "0.1");
@@ -145,7 +152,7 @@ async function sampleLLM(
     options?.temperature ??
     (options?.isRetry ? baseTemp + tempIncrement : baseTemp);
 
-  const modelHint = process.env.MODEL;
+  const modelHint = options?.modelOverride ?? process.env.MODEL;
   const basePrompt = getSystemPrompt(modelHint);
   const systemPrompt = options?.isRetry
     ? basePrompt + "\n\n" + CORRECTION_SUFFIX
@@ -161,7 +168,6 @@ async function sampleLLM(
 
   const inputTokens = countTokens(systemPrompt + "\n" + augmentedUserPrompt);
 
-  // Model hint from env
   const modelPreferences = modelHint
     ? { hints: [{ name: modelHint }] }
     : undefined;
@@ -260,6 +266,14 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
   const requestStart = Date.now();
   recordRequest();
 
+  if (request.params.name !== "solve_problem") {
+    recordFailure();
+    throw new McpError(
+      ErrorCode.InvalidParams,
+      `Unknown tool: ${request.params.name}`
+    );
+  }
+
   const parseArgs = SolveProblemArgsSchema.safeParse(request.params.arguments);
   if (!parseArgs.success) {
     recordFailure();
@@ -274,130 +288,161 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
   const MAX_RETRIES = parseInt(process.env.MAX_RETRIES || "2", 10);
   const BASE_TEMP = parseFloat(process.env.BASE_TEMP || "0.1");
   const TEMP_INCREMENT = parseFloat(process.env.TEMP_INCREMENT || "0.2");
+  const fallbackModels = getFallbackModels();
+  const models = [
+    process.env.MODEL,
+    ...fallbackModels,
+  ].filter(Boolean) as string[];
+
   let lastRaw: string | null = null;
   let lastRejectionMemo: string | null = null;
   let lastTokenCount: SamplingResult["tokenCount"] | null = null;
+  let modelIndex = 0;
 
-  for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
-    const temperature =
-      attempt === 0 ? BASE_TEMP : BASE_TEMP + TEMP_INCREMENT * attempt;
-    const isRetry = attempt > 0;
-    if (isRetry) recordRetry();
+  while (modelIndex < models.length) {
+    const currentModel = models[modelIndex];
+    logger.info("Trying model", { model: currentModel, modelIndex });
 
-    logger.info("Processing request attempt", {
-      attempt,
-      temperature,
-      isRetry,
-    });
+    for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+      const temperature =
+        attempt === 0 ? BASE_TEMP : BASE_TEMP + TEMP_INCREMENT * attempt;
+      const isRetry = attempt > 0;
+      if (isRetry) recordRetry();
 
-    try {
-      const samplingResult = await sampleLLM(prompt, lastRejectionMemo, {
+      logger.info("Processing request attempt", {
+        attempt,
         temperature,
         isRetry,
+        model: currentModel,
       });
-      lastRaw = samplingResult.text;
-      lastTokenCount = samplingResult.tokenCount;
 
-      if (samplingResult.tokenCount) {
-        recordTokenUsage(
-          samplingResult.tokenCount.input,
-          samplingResult.tokenCount.output,
-          samplingResult.tokenCount.budget
-        );
-      }
-
-      if (samplingResult.truncated) {
-        recordTruncation();
-        lastRejectionMemo =
-          `[TRUNCATED] Your previous response hit the token limit (${samplingResult.tokenCount.output}/${samplingResult.tokenCount.budget}). ` +
-          "Please be more concise in your reasoning.\n\n" +
-          samplingResult.text.slice(0, 300);
-        logger.warn("Truncation detected, injecting conciseness hint", {
-          attempt,
+      try {
+        const samplingResult = await sampleLLM(prompt, lastRejectionMemo, {
+          temperature,
+          isRetry,
+          modelOverride: currentModel,
         });
-        if (attempt === MAX_RETRIES) break;
-        continue;
-      }
+        lastRaw = samplingResult.text;
+        lastTokenCount = samplingResult.tokenCount;
 
-      const parsed = parseCoT(samplingResult.text);
-      if (parsed) {
-        // Validate against user-supplied result schema if provided
-        if (parseArgs.data.resultSchema) {
-          const schemaValidation = validateResultSchema(
-            parsed.result,
-            parseArgs.data.resultSchema
+        if (samplingResult.tokenCount) {
+          recordTokenUsage(
+            samplingResult.tokenCount.input,
+            samplingResult.tokenCount.output,
+            samplingResult.tokenCount.budget
           );
-          if (!schemaValidation.valid) {
-            lastRejectionMemo =
-              `[SCHEMA MISMATCH] The result field did not match the required schema. ` +
-              `Errors: ${schemaValidation.error}`;
-            logger.warn("Result schema validation failed", {
-              attempt,
-              error: schemaValidation.error,
-            });
-            if (attempt === MAX_RETRIES) break;
-            continue;
-          }
         }
 
-        recordSuccess();
-        recordParseLatency(Date.now() - requestStart);
-        logger.info("CoT parsed successfully", {
-          reasonLength: parsed.reasoning.length,
+        if (samplingResult.truncated) {
+          recordTruncation();
+          lastRejectionMemo =
+            `[TRUNCATED] Your previous response hit the token limit (${samplingResult.tokenCount.output}/${samplingResult.tokenCount.budget}). ` +
+            "Please be more concise in your reasoning.\n\n" +
+            samplingResult.text.slice(0, 300);
+          logger.warn("Truncation detected, injecting conciseness hint", {
+            attempt,
+            model: currentModel,
+          });
+          if (attempt === MAX_RETRIES) break;
+          continue;
+        }
+
+        const parsed = parseCoT(samplingResult.text);
+        if (parsed) {
+          // Validate against user-supplied result schema if provided
+          if (parseArgs.data.resultSchema) {
+            const schemaValidation = validateResultSchema(
+              parsed.result,
+              parseArgs.data.resultSchema
+            );
+            if (!schemaValidation.valid) {
+              lastRejectionMemo =
+                `[SCHEMA MISMATCH] The result field did not match the required schema. ` +
+                `Errors: ${schemaValidation.error}`;
+              logger.warn("Result schema validation failed", {
+                attempt,
+                error: schemaValidation.error,
+              });
+              if (attempt === MAX_RETRIES) break;
+              continue;
+            }
+          }
+
+          recordSuccess();
+          recordParseLatency(Date.now() - requestStart);
+          logger.info("CoT parsed successfully", {
+            reasonLength: parsed.reasoning.length,
+            model: currentModel,
+          });
+          const tokenMeta = lastTokenCount
+            ? `\n\n📊 Token Usage: ${lastTokenCount.input} in / ${lastTokenCount.output} out / ${lastTokenCount.budget} budget`
+            : "";
+          const modelMeta = models.length > 1 ? `\n🔄 Model used: ${currentModel}` : "";
+          return {
+            content: [
+              {
+                type: "text",
+                text:
+                  `🤖 Agentic CoT Result:\n\n**Reasoning:** ${parsed.reasoning}\n\n**Answer:** ${parsed.result}` +
+                  tokenMeta +
+                  modelMeta,
+              },
+            ],
+          };
+        }
+
+        lastRejectionMemo = samplingResult.text.slice(0, 500);
+        logger.warn("Parse failed, storing rejection memo", {
+          attempt,
+          snippetLength: lastRejectionMemo.length,
+          model: currentModel,
         });
-        const tokenMeta = lastTokenCount
-          ? `\n\n📊 Token Usage: ${lastTokenCount.input} in / ${lastTokenCount.output} out / ${lastTokenCount.budget} budget`
-          : "";
-        return {
-          content: [
-            {
-              type: "text",
-              text:
-                `🤖 Agentic CoT Result:\n\n**Reasoning:** ${parsed.reasoning}\n\n**Answer:** ${parsed.result}` +
-                tokenMeta,
-            },
-          ],
-        };
-      }
 
-      lastRejectionMemo = samplingResult.text.slice(0, 500);
-      logger.warn("Parse failed, storing rejection memo", {
-        attempt,
-        snippetLength: lastRejectionMemo.length,
-      });
-
-      if (attempt === MAX_RETRIES) break;
-    } catch (err) {
-      recordSamplingError();
-      lastRejectionMemo = `[Sampling error]: ${err instanceof Error ? err.message : String(err)}`;
-      logger.error("Attempt failed with exception", {
-        attempt,
-        error: lastRejectionMemo,
-      });
-      if (attempt === MAX_RETRIES) {
-        recordFailure();
-        recordParseLatency(Date.now() - requestStart);
-        throw new McpError(
-          ErrorCode.InternalError,
-          `Sampling failed after ${MAX_RETRIES + 1} attempts: ${lastRejectionMemo}`
-        );
+        if (attempt === MAX_RETRIES) break;
+      } catch (err) {
+        recordSamplingError();
+        lastRejectionMemo = `[Sampling error]: ${err instanceof Error ? err.message : String(err)}`;
+        logger.error("Attempt failed with exception", {
+          attempt,
+          error: lastRejectionMemo,
+          model: currentModel,
+        });
+        if (attempt === MAX_RETRIES) {
+          recordFailure();
+          recordParseLatency(Date.now() - requestStart);
+          // Don't throw yet — try next fallback model if available
+          break;
+        }
       }
+    }
+
+    modelIndex++;
+    if (modelIndex < models.length) {
+      logger.info("Switching to fallback model", {
+        from: currentModel,
+        to: models[modelIndex],
+      });
+      lastRejectionMemo =
+        `[MODEL SWITCH] Model ${currentModel} failed after ${MAX_RETRIES + 1} attempts. ` +
+        `Trying ${models[modelIndex]} instead.`;
     }
   }
 
-  logger.warn("Returning raw output fallback after all retries");
+  logger.warn("Returning raw output fallback after all models exhausted");
   recordFailure();
   recordParseLatency(Date.now() - requestStart);
   const tokenMeta = lastTokenCount
     ? `\n\n📊 Token Usage: ${lastTokenCount.input} in / ${lastTokenCount.output} out / ${lastTokenCount.budget} budget`
     : "";
+  const triedModels = models.length > 1 ? `\n🔄 Tried models: ${models.join(", ")}` : "";
   return {
     content: [
       {
         type: "text",
         text:
-          `⚠️ Agentic CoT could not be parsed after ${MAX_RETRIES + 1} attempts. Raw LLM output:\n\n${lastRaw || "No output"}` +
-          tokenMeta,
+          `⚠️ Agentic CoT could not be parsed after trying ${models.length} model(s). Raw LLM output:\n\n${lastRaw || "No output"}` +
+          tokenMeta +
+          triedModels,
       },
     ],
     isError: false,
