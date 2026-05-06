@@ -302,6 +302,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
   let lastRaw: string | null = null;
   let lastRejectionMemo: string | null = null;
   let lastTokenCount: SamplingResult["tokenCount"] | null = null;
+  let lastError: string | null = null;
   let modelIndex = 0;
 
   while (modelIndex < models.length) {
@@ -406,7 +407,9 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         if (attempt === MAX_RETRIES) break;
       } catch (err) {
         recordSamplingError();
-        lastRejectionMemo = `[Sampling error]: ${err instanceof Error ? err.message : String(err)}`;
+        const errMsg = err instanceof Error ? err.message : String(err);
+        lastError = errMsg;
+        lastRejectionMemo = `[Sampling error]: ${errMsg}`;
         logger.error("Attempt failed with exception", {
           attempt,
           error: lastRejectionMemo,
@@ -441,6 +444,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
     ? `\n\n📊 Token Usage: ${lastTokenCount.input} in / ${lastTokenCount.output} out / ${lastTokenCount.budget} budget`
     : "";
   const triedModels = models.length > 1 ? `\n🔄 Tried models: ${models.join(", ")}` : "";
+  const errorMeta = lastError ? `\n\n❌ Last error: ${lastError}` : "";
   return {
     content: [
       {
@@ -448,7 +452,8 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         text:
           `⚠️ Agentic CoT could not be parsed after trying ${models.length} model(s). Raw LLM output:\n\n${lastRaw || "No output"}` +
           tokenMeta +
-          triedModels,
+          triedModels +
+          errorMeta,
       },
     ],
     isError: false,
@@ -461,12 +466,25 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 async function main(): Promise<void> {
   const transport = new StdioServerTransport();
   await server.connect(transport);
+
+  const clientCaps = server.getClientCapabilities();
+  const samplingSupported =
+    clientCaps &&
+    typeof clientCaps === "object" &&
+    "sampling" in clientCaps;
+  if (!samplingSupported) {
+    logger.warn(
+      "Connected client does NOT advertise sampling support. LLM calls via sampling/createMessage will likely fail."
+    );
+  }
+
   logger.info("CotForce-MCP server started", {
     model: process.env.MODEL || "not set (host default)",
     maxRetries: parseInt(process.env.MAX_RETRIES || "2", 10),
     baseTemp: parseFloat(process.env.BASE_TEMP || "0.1"),
     tempIncrement: parseFloat(process.env.TEMP_INCREMENT || "0.2"),
     tiktoken: getEncodingSafe() ? "available" : "fallback to heuristic",
+    samplingSupported,
   });
 }
 
