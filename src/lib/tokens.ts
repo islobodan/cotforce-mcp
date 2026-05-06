@@ -1,20 +1,28 @@
-import { get_encoding } from "tiktoken";
+/**
+ * Lazy-initialize tiktoken encoding. WASM (~2MB) only loaded on first call to countTokens().
+ * Most paths use estimateTokens() or API usage data, so this rarely fires.
+ */
+let encoding: ReturnType<typeof import("tiktoken")["get_encoding"]> | null = null;
+let encodingPromise: Promise<ReturnType<typeof import("tiktoken")["get_encoding"]> | null> | null = null;
 
-let encoding: ReturnType<typeof get_encoding> | null = null;
-
-export function getEncodingSafe(): ReturnType<typeof get_encoding> | null {
-  if (!encoding) {
+export async function getEncodingSafe(): Promise<ReturnType<typeof import("tiktoken")["get_encoding"]> | null> {
+  if (encoding) return encoding;
+  if (encodingPromise) return encodingPromise;
+  encodingPromise = (async () => {
     try {
+      const { get_encoding } = await import("tiktoken");
       encoding = get_encoding("cl100k_base");
+      return encoding;
     } catch {
       return null;
     }
-  }
-  return encoding;
+  })();
+  return encodingPromise;
 }
 
 export function resetEncoding(): void {
   encoding = null;
+  encodingPromise = null;
 }
 
 /**
@@ -27,9 +35,10 @@ export function estimateTokens(text: string): number {
 
 /**
  * Exact token count using tiktoken (cl100k_base). Falls back to estimate.
+ * tiktoken WASM is lazy-loaded on first call.
  */
-export function countTokens(text: string): number {
-  const enc = getEncodingSafe();
+export async function countTokens(text: string): Promise<number> {
+  const enc = await getEncodingSafe();
   if (enc) {
     return enc.encode(text).length;
   }

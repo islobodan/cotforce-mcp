@@ -288,7 +288,7 @@ async function sampleLLM(
       });
 
       const fullText = result.text;
-      const outputTokens = result.usage?.completion_tokens ?? countTokens(fullText);
+      const outputTokens = result.usage?.completion_tokens ?? await countTokens(fullText);
       const truncated = result.finishReason === "length" || isTruncated(outputTokens, maxTokens);
 
       if (truncated) {
@@ -687,7 +687,7 @@ async function main(): Promise<void> {
     maxRetries: MAX_RETRIES,
     baseTemp: parseFloat(process.env.BASE_TEMP || "0.1"),
     tempIncrement: parseFloat(process.env.TEMP_INCREMENT || "0.2"),
-    tiktoken: getEncodingSafe() ? "available" : "fallback to heuristic",
+    tiktoken: (await getEncodingSafe()) ? "available" : "fallback to heuristic",
     samplingSupported: clientSamplingSupported,
   });
 }

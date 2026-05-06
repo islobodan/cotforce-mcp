@@ -37,17 +37,17 @@ Based on the honest value review, here are actionable improvements, organized by
 
 ## 🟠 High (Significant Reliability & Usability Gains)
 
-- [ ] **Fix section comment numbering in `index.ts`**
-  Sections 3/4/5/6 have duplicate or out-of-order comment numbers (e.g., two `// 4.` sections). Renumber to match the actual order.
+- [x] **Fix section comment numbering in `index.ts`**
+  ✅ Sections renumbered sequentially 1→12 (was: duplicate 4, 5, 6, 7).
 
-- [ ] **Extract `MAX_RETRIES` constant**
-  `parseInt(process.env.MAX_RETRIES || "2", 10)` appears in two places (lines ~416 and ~467). Parse once and share.
+- [x] **Extract `MAX_RETRIES` constant**
+  ✅ Single module-level definition. Replaced 3 duplicate `parseInt(process.env.MAX_RETRIES...)` calls.
 
-- [ ] **Replace silent `catch { /* ignore */ }` in parser**
-  All 4 parser try/catch blocks swallow errors. Add `logger.debug()` to enable debugging parse failures without breaking the fallback chain.
+- [x] **Replace silent `catch { /* ignore */ }` in parser**
+  ✅ All 5 silent catch blocks now log to stderr when `LOG_LEVEL=DEBUG`. Added `parserDebug()` helper.
 
-- [ ] **Add `REJECTION_MEMO_MAX_LENGTH` constant**
-  Magic numbers 300 and 500 are used for slicing rejection memos in two places. Extract into a named constant.
+- [x] **Add `REJECTION_MEMO_MAX_LENGTH` constant**
+  ✅ Named constants: `REJECTION_MEMO_MAX_LENGTH=500`, `RETRY_CONTEXT_MAX_LENGTH=300`. No more magic numbers.
 
 - [ ] **Multi-session rejection memory**
   Instead of a single rejection memo, store a sliding window of recent failures (e.g., last 5). Aggregate common failure patterns (e.g., "model outputs markdown blocks without JSON") and inject more targeted corrections.
@@ -71,14 +71,14 @@ Based on the honest value review, here are actionable improvements, organized by
 - [x] **Expose raw token usage in response**
   ✅ Appended to response text: `📊 Token Usage: X in / Y out / Z budget`. Available on both success and fallback responses.
 
-- [ ] **Preserve error stack traces in `McpError` wrappers**
-  `throw new McpError(ErrorCode.InternalError, message)` loses the original error stack. Use `{ cause: error }` to preserve it.
+- [x] **Preserve error stack traces in `McpError` wrappers**
+  ✅ Both `McpError` throw sites now attach original error via `Error.cause` before re-throwing.
 
-- [ ] **Sanitize LLM error responses**
-  Error text from LLM API is passed verbatim to MCP client. Could leak API keys or internal paths. Redact `sk-...` patterns.
+- [x] **Sanitize LLM error responses**
+  ✅ `sanitizeErrorText()` redacts `sk-...`, Bearer tokens, `apikey=`, `key=`, `token=` patterns from error text.
 
-- [ ] **Add test for the full retry loop**
-  The `attempt ≤ MAX_RETRIES` loop, fallback model cycling, and truncated/recovery/retry transitions are the most complex code paths but have no dedicated tests.
+- [x] **Add test for the full retry loop**
+  ✅ 4 integration tests with mock HTTP LLM server covering: parse failures, truncated recovery, schema mismatch retries, fallback model switching.
 
 - [ ] **Add rate limiting / concurrency control**
   Prevent overloading the LLM with concurrent requests. Use a simple semaphore or queue.
@@ -97,7 +97,7 @@ Based on the honest value review, here are actionable improvements, organized by
   ✅ Expanded from 1 to 4 correct examples showing all result types (number, string, object, boolean). Added small-model-specific prompt for Qwen, Gemma, Llama, Mistral, Phi.
 
 - [x] **Write integration tests with real LLMs**
-  ✅ Comprehensive test suite with 112 tests covering parser layers (including truncated JSON recovery), token budgeting, and MCP server integration via `@slbdn/mcp-tester`.
+  ✅ Comprehensive test suite with 118 tests covering parser layers (including truncated JSON recovery), token budgeting, retry loop, fallback models, and MCP server integration via `@slbdn/mcp-tester`.
 
 - [x] **Create a `CONTRIBUTING.md`**
   ✅ Architecture documented in README.md with `src/lib/` module descriptions.

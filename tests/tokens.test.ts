@@ -11,36 +11,38 @@ describe("countTokens", () => {
     resetEncoding();
   });
 
-  it("counts tokens for simple text", () => {
-    const tokens = countTokens("hello world");
+  it("counts tokens for simple text", async () => {
+    const tokens = await countTokens("hello world");
     expect(tokens).toBeGreaterThan(0);
     expect(Number.isInteger(tokens)).toBe(true);
   });
 
-  it("counts tokens for empty string", () => {
-    expect(countTokens("")).toBe(0);
+  it("counts tokens for empty string", async () => {
+    expect(await countTokens("")).toBe(0);
   });
 
-  it("returns consistent counts for same input", () => {
+  it("returns consistent counts for same input", async () => {
     const text = "The quick brown fox jumps over the lazy dog.";
-    expect(countTokens(text)).toBe(countTokens(text));
+    const first = await countTokens(text);
+    const second = await countTokens(text);
+    expect(first).toBe(second);
   });
 
-  it("counts more tokens for longer text", () => {
+  it("counts more tokens for longer text", async () => {
     const short = "hi";
     const long = "hi ".repeat(100);
-    expect(countTokens(long)).toBeGreaterThan(countTokens(short));
+    const shortTokens = await countTokens(short);
+    const longTokens = await countTokens(long);
+    expect(longTokens).toBeGreaterThan(shortTokens);
   });
 
-  it("handles special characters", () => {
+  it("handles special characters", async () => {
     const text = "Hello! How are you? 🎉 €100 {\"key\": \"value\"}";
-    expect(() => countTokens(text)).not.toThrow();
-    expect(countTokens(text)).toBeGreaterThan(0);
+    await expect(countTokens(text)).resolves.toBeGreaterThan(0);
   });
 
-  it("handles unicode", () => {
-    expect(() => countTokens("日本語テキスト")).not.toThrow();
-    expect(countTokens("日本語テキスト")).toBeGreaterThan(0);
+  it("handles unicode", async () => {
+    await expect(countTokens("日本語テキスト")).resolves.toBeGreaterThan(0);
   });
 });
 
@@ -135,22 +137,22 @@ describe("getEncodingSafe", () => {
     resetEncoding();
   });
 
-  it("returns encoding on first call", () => {
-    const enc = getEncodingSafe();
+  it("returns encoding on first call", async () => {
+    const enc = await getEncodingSafe();
     expect(enc).not.toBeNull();
   });
 
-  it("returns same encoding on subsequent calls", () => {
-    const first = getEncodingSafe();
-    const second = getEncodingSafe();
+  it("returns same encoding on subsequent calls", async () => {
+    const first = await getEncodingSafe();
+    const second = await getEncodingSafe();
     expect(first).toBe(second);
   });
 
-  it("returns null after reset", () => {
-    getEncodingSafe();
+  it("returns null after reset", async () => {
+    await getEncodingSafe();
     resetEncoding();
     // After reset, next call should create a new one
-    const enc = getEncodingSafe();
+    const enc = await getEncodingSafe();
     expect(enc).not.toBeNull();
   });
 });
