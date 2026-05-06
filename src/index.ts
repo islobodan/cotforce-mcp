@@ -5,6 +5,7 @@ import {
   ListToolsRequestSchema,
   ErrorCode,
   McpError,
+  type ProgressNotification,
 } from "@modelcontextprotocol/sdk/types.js";
 import { z } from "zod";
 import { parseCoT } from "./lib/parser.js";
@@ -97,9 +98,9 @@ function formatResult(result: unknown): string {
 // ------------------------------------------------------------------
 // 5. PROGRESS NOTIFICATIONS
 // ------------------------------------------------------------------
-type SendNotificationFn = (notification: unknown) => Promise<void>;
+export type SendNotificationFn = (notification: ProgressNotification) => Promise<void>;
 
-function createProgressSender(
+export function createProgressSender(
   progressToken: string | number | undefined,
   sendNotification: SendNotificationFn,
   totalSteps: number
@@ -417,9 +418,9 @@ server.setRequestHandler(CallToolRequestSchema, async (request, extra) => {
   const requestStart = Date.now();
   recordRequest();
 
-  const progressToken = (request.params as { _meta?: { progressToken?: string | number } })._meta?.progressToken;
+  const progressToken = request.params._meta?.progressToken;
   const totalSteps = (MAX_RETRIES + 1) * (getFallbackModels().length + 1);
-  const notifyProgress = createProgressSender(progressToken, extra.sendNotification as SendNotificationFn, totalSteps);
+  const notifyProgress = createProgressSender(progressToken, extra.sendNotification as unknown as SendNotificationFn, totalSteps);
 
   if (request.params.name !== "solve_problem") {
     recordFailure();
