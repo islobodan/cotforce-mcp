@@ -69,6 +69,11 @@ const logger = {
 // ------------------------------------------------------------------
 const MAX_RETRIES = parseInt(process.env.MAX_RETRIES || "2", 10);
 
+/** Maximum characters of a failed response to store in rejection memo (passed to next retry). */
+const REJECTION_MEMO_MAX_LENGTH = 500;
+/** Maximum characters of rejection context to inject into the prompt on retry. */
+const RETRY_CONTEXT_MAX_LENGTH = 300;
+
 // ------------------------------------------------------------------
 // 3. SCHEMAS
 // ------------------------------------------------------------------
@@ -245,7 +250,7 @@ async function sampleLLM(
     : basePrompt;
 
   const augmentedUserPrompt = rejectionMemo
-    ? `${prompt}\n\n[CONTEXT: Previously the model failed with:\n${rejectionMemo.slice(0, 300)}]`
+    ? `${prompt}\n\n[CONTEXT: Previously the model failed with:\n${rejectionMemo.slice(0, RETRY_CONTEXT_MAX_LENGTH)}]`
     : prompt;
 
   const tokenBudget =
@@ -532,7 +537,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request, extra) => {
           lastRejectionMemo =
             `[TRUNCATED] Your previous response hit the token limit (${samplingResult.tokenCount.output}/${samplingResult.tokenCount.budget} tokens). ` +
             "Be more concise — skip repetitive analysis and go straight to the key deductions.\n\n" +
-            samplingResult.text.slice(0, 300);
+            samplingResult.text.slice(0, RETRY_CONTEXT_MAX_LENGTH);
           logger.warn("Recovery failed, retrying with increased budget", {
             attempt,
             oldBudget: samplingResult.tokenCount.budget,
@@ -588,7 +593,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request, extra) => {
           };
         }
 
-        lastRejectionMemo = samplingResult.text.slice(0, 500);
+        lastRejectionMemo = samplingResult.text.slice(0, REJECTION_MEMO_MAX_LENGTH);
         logger.warn("Parse failed, storing rejection memo", {
           attempt,
           snippetLength: lastRejectionMemo.length,
