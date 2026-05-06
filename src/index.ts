@@ -11,6 +11,7 @@ import { parseCoT } from "./lib/parser.js";
 import {
   computeTokenBudget,
   countTokens,
+  estimateTokens,
   getEncodingSafe,
   isTruncated,
 } from "./lib/tokens.js";
@@ -209,11 +210,12 @@ async function sampleLLM(
     ? `${prompt}\n\n[CONTEXT: Previously the model failed with:\n${rejectionMemo.slice(0, 300)}]`
     : prompt;
 
-  const maxTokens =
-    options?.budgetOverride ??
-    computeTokenBudget(augmentedUserPrompt, systemPrompt);
-
-  const inputTokens = countTokens(systemPrompt + "\n" + augmentedUserPrompt);
+  const tokenBudget =
+    options?.budgetOverride !== undefined
+      ? { budget: options.budgetOverride, inputTokens: estimateTokens(systemPrompt + "\n" + augmentedUserPrompt) }
+      : computeTokenBudget(augmentedUserPrompt, systemPrompt);
+  const maxTokens = tokenBudget.budget;
+  const inputTokens = tokenBudget.inputTokens;
 
   logger.debug("Sampling request", {
     temperature,
@@ -305,7 +307,7 @@ async function sampleLLM(
     }
 
     const fullText = response.content.text;
-    const outputTokens = countTokens(fullText);
+    const outputTokens = estimateTokens(fullText);
     const truncated = isTruncated(outputTokens, maxTokens);
 
     if (truncated) {

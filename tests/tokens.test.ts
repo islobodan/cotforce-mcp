@@ -1,6 +1,7 @@
 import {
   countTokens,
   computeTokenBudget,
+  estimateTokens,
   getEncodingSafe,
   resetEncoding,
 } from "../src/lib/tokens.js";
@@ -44,42 +45,41 @@ describe("countTokens", () => {
 });
 
 describe("computeTokenBudget", () => {
-  it("returns at least the minimum", () => {
-    const budget = computeTokenBudget("hi", "system");
+  it("returns at least the minimum budget", () => {
+    const { budget } = computeTokenBudget("hi", "system");
     expect(budget).toBeGreaterThanOrEqual(1024);
   });
 
-  it("returns at most the maximum", () => {
-    const budget = computeTokenBudget("x".repeat(10000), "system");
+  it("returns at most the maximum budget", () => {
+    const { budget } = computeTokenBudget("x".repeat(10000), "system");
     expect(budget).toBeLessThanOrEqual(4096);
   });
 
-  it("increases with input size", () => {
-    const short = computeTokenBudget("short", "sys");
-    const long = computeTokenBudget("this is a much longer prompt with many words", "sys");
+  it("increases budget with input size", () => {
+    const { budget: short } = computeTokenBudget("short", "sys");
+    const { budget: long } = computeTokenBudget("this is a much longer prompt with many words", "sys");
     expect(long).toBeGreaterThanOrEqual(short);
   });
 
   it("respects custom min bound", () => {
-    const budget = computeTokenBudget("hi", "sys", { min: 512 });
+    const { budget } = computeTokenBudget("hi", "sys", { min: 512 });
     expect(budget).toBeGreaterThanOrEqual(512);
   });
 
   it("respects custom max bound", () => {
-    const budget = computeTokenBudget("x".repeat(10000), "sys", { max: 2048 });
+    const { budget } = computeTokenBudget("x".repeat(10000), "sys", { max: 2048 });
     expect(budget).toBeLessThanOrEqual(2048);
   });
 
   it("respects custom overhead", () => {
-    // Use a very long prompt so budget exceeds the minimum and overhead matters
     const prompt = "Lorem ipsum dolor sit amet, consectetur adipiscing elit. ".repeat(50);
-    const withDefault = computeTokenBudget(prompt, "system");
-    const withCustom = computeTokenBudget(prompt, "system", { overhead: 100 });
+    const { budget: withDefault } = computeTokenBudget(prompt, "system");
+    const { budget: withCustom } = computeTokenBudget(prompt, "system", { overhead: 100 });
     expect(withCustom).toBeLessThan(withDefault);
   });
 
-  it("returns integer values", () => {
-    const budget = computeTokenBudget("test", "system");
+  it("returns integer budget", () => {
+    const { budget } = computeTokenBudget("test", "system");
     expect(Number.isInteger(budget)).toBe(true);
   });
 
@@ -87,11 +87,46 @@ describe("computeTokenBudget", () => {
     const original = process.env.REASONING_OVERHEAD;
     process.env.REASONING_OVERHEAD = "1000";
     const prompt = "Lorem ipsum dolor sit amet, consectetur adipiscing elit. ".repeat(50);
-    const withHighOverhead = computeTokenBudget(prompt, "system");
+    const { budget: withHighOverhead } = computeTokenBudget(prompt, "system");
     delete process.env.REASONING_OVERHEAD;
-    const withDefault = computeTokenBudget(prompt, "system");
+    const { budget: withDefault } = computeTokenBudget(prompt, "system");
     if (original !== undefined) process.env.REASONING_OVERHEAD = original;
     expect(withHighOverhead).toBeGreaterThan(withDefault);
+  });
+
+  it("returns inputTokens estimate", () => {
+    const { inputTokens } = computeTokenBudget("hello world", "system prompt");
+    expect(inputTokens).toBeGreaterThan(0);
+    expect(Number.isInteger(inputTokens)).toBe(true);
+  });
+
+  it("inputTokens avoids double-counting", () => {
+    const text = "system prompt\nuser prompt here";
+    const { inputTokens } = computeTokenBudget("user prompt here", "system prompt");
+    expect(inputTokens).toBe(estimateTokens(text));
+  });
+});
+
+describe("estimateTokens", () => {
+  it("estimates tokens for simple text", () => {
+    const tokens = estimateTokens("hello world");
+    expect(tokens).toBeGreaterThan(0);
+    expect(Number.isInteger(tokens)).toBe(true);
+  });
+
+  it("returns 0 for empty string", () => {
+    expect(estimateTokens("")).toBe(0);
+  });
+
+  it("is consistent with itself", () => {
+    const text = "The quick brown fox jumps over the lazy dog.";
+    expect(estimateTokens(text)).toBe(estimateTokens(text));
+  });
+
+  it("is roughly proportional to length", () => {
+    const short = "hi";
+    const long = "hi ".repeat(100);
+    expect(estimateTokens(long)).toBeGreaterThan(estimateTokens(short));
   });
 });
 

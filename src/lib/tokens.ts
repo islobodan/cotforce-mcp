@@ -17,26 +17,45 @@ export function resetEncoding(): void {
   encoding = null;
 }
 
+/**
+ * Lightweight token estimate without tiktoken.
+ * ~1 token per 4 chars for English text. Good enough for budget math.
+ */
+export function estimateTokens(text: string): number {
+  return Math.ceil(text.length / 3.5);
+}
+
+/**
+ * Exact token count using tiktoken (cl100k_base). Falls back to estimate.
+ */
 export function countTokens(text: string): number {
   const enc = getEncodingSafe();
   if (enc) {
     return enc.encode(text).length;
   }
-  return Math.ceil(text.length / 4);
+  return estimateTokens(text);
+}
+
+export interface TokenBudget {
+  budget: number;
+  inputTokens: number;
 }
 
 export function computeTokenBudget(
   prompt: string,
   systemPrompt: string,
   opts?: { min?: number; max?: number; overhead?: number }
-): number {
-  const totalInput = systemPrompt + "\n" + prompt;
-  const inputTokens = countTokens(totalInput);
+): TokenBudget {
+  const fullInput = systemPrompt + "\n" + prompt;
+  const inputTokens = estimateTokens(fullInput);
   const overhead = opts?.overhead ?? parseInt(process.env.REASONING_OVERHEAD || "650", 10);
   const recommended = overhead + inputTokens * 2;
   const min = opts?.min ?? 1024;
   const max = opts?.max ?? 4096;
-  return Math.min(max, Math.max(min, recommended));
+  return {
+    budget: Math.min(max, Math.max(min, recommended)),
+    inputTokens,
+  };
 }
 
 /**
