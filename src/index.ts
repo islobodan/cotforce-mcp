@@ -14,7 +14,10 @@ import {
   getEncodingSafe,
   isTruncated,
 } from "./lib/tokens.js";
-import { AGENTIC_SYSTEM_PROMPT, CORRECTION_SUFFIX } from "./lib/prompts.js";
+import {
+  CORRECTION_SUFFIX,
+  getSystemPrompt,
+} from "./lib/prompts.js";
 import {
   getMetrics,
   recordFailure,
@@ -142,9 +145,11 @@ async function sampleLLM(
     options?.temperature ??
     (options?.isRetry ? baseTemp + tempIncrement : baseTemp);
 
+  const modelHint = process.env.MODEL;
+  const basePrompt = getSystemPrompt(modelHint);
   const systemPrompt = options?.isRetry
-    ? AGENTIC_SYSTEM_PROMPT + "\n\n" + CORRECTION_SUFFIX
-    : AGENTIC_SYSTEM_PROMPT;
+    ? basePrompt + "\n\n" + CORRECTION_SUFFIX
+    : basePrompt;
 
   const augmentedUserPrompt = rejectionMemo
     ? `${prompt}\n\n[CONTEXT: Previously the model failed with:\n${rejectionMemo.slice(0, 300)}]`
@@ -157,7 +162,6 @@ async function sampleLLM(
   const inputTokens = countTokens(systemPrompt + "\n" + augmentedUserPrompt);
 
   // Model hint from env
-  const modelHint = process.env.MODEL;
   const modelPreferences = modelHint
     ? { hints: [{ name: modelHint }] }
     : undefined;
