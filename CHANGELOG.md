@@ -19,7 +19,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Model-specific prompts** — `getSystemPrompt()` selects tuned system prompts for Claude, GPT-4, Gemini, and Grok based on `MODEL` env.
 - **Fallback models** — `FALLBACK_MODELS=gpt-4o,claude-3-5-sonnet` cycles to next model on failure.
 - **Direct LLM HTTP client** — `MODE=auto/direct` with `API_KEY` enables OpenAI-compatible direct HTTP calls for MCP clients without sampling support (LMStudio, VS Code extensions, etc.). Works with any OpenAI-compatible provider.
-- Comprehensive test suite: 112 tests across parser, tokens, metrics, schema validation, prompts, LLM client, and server integration.
+- Comprehensive test suite: 123 tests across parser, tokens, metrics, schema validation, prompts, LLM client, retry loop, progress notifications, and server integration.
 - Extracted library modules: `src/lib/parser.ts`, `src/lib/tokens.ts`, `src/lib/prompts.ts`, `src/lib/metrics.ts`, `src/lib/llm.ts`
 - `@slbdn/mcp-tester` integration for MCP server testing
 - Jest + ts-jest ESM test runner configuration
@@ -36,6 +36,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `computeTokenBudget()` returns `{ budget, inputTokens }` to eliminate duplicate token counting
 - Object results and reasoning are formatted with `JSON.stringify()` instead of `[object Object]`
 - `callDirectLLM()` omits `Authorization` header when `API_KEY` is empty
+- **Section numbering fixed**: 1→12 sequential, no duplicates (`MAX_RETRIES` constant, `ENVIRONMENT CONSTANTS` section added)
+- **Parser catch blocks**: silent `/* ignore */` replaced with `parserDebug()` logging (emits on `LOG_LEVEL=DEBUG`)
+- **Named constants**: `REJECTION_MEMO_MAX_LENGTH=500`, `RETRY_CONTEXT_MAX_LENGTH=300` (no magic numbers)
+- **Error stack traces preserved**: `McpError` wrappers now attach original error via `Error.cause`
+- **LLM error sanitization**: `sanitizeErrorText()` redacts `sk-...`, Bearer tokens, and API key patterns from error text
+- **`tiktoken` lazy-loaded**: ~2MB WASM only imported on first `countTokens()` call via dynamic `import()`
+- **Type safety**: `progressToken` and `sendNotification` now use proper SDK types instead of raw casts
+- **Metrics concurrency**: all metrics mutations wrapped in `MetricsGuard.run()` for SSE/WebSocket safety
 
 ## [1.0.0] - 2026-05-05
 

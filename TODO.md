@@ -97,7 +97,7 @@ Based on the honest value review, here are actionable improvements, organized by
   ✅ Expanded from 1 to 4 correct examples showing all result types (number, string, object, boolean). Added small-model-specific prompt for Qwen, Gemma, Llama, Mistral, Phi.
 
 - [x] **Write integration tests with real LLMs**
-  ✅ Comprehensive test suite with 118 tests covering parser layers (including truncated JSON recovery), token budgeting, retry loop, fallback models, and MCP server integration via `@slbdn/mcp-tester`.
+  ✅ Comprehensive test suite with 123 tests covering parser layers (including truncated JSON recovery), token budgeting, retry loop, fallback models, progress notifications, and MCP server integration via `@slbdn/mcp-tester`.
 
 - [x] **Create a `CONTRIBUTING.md`**
   ✅ Architecture documented in README.md with `src/lib/` module descriptions.
@@ -105,17 +105,17 @@ Based on the honest value review, here are actionable improvements, organized by
 - [x] **Publish to npm**  
   ✅ Package configured as `@slbdn/cotforce-mcp`. Ready to publish with `npm publish --access public`. Dry-run passes: 31 files, 36.2 kB.
 
-- [ ] **Lazy import `tiktoken`**
-  `tiktoken` is a ~2MB WASM dependency loaded at module level but only used in `countTokens()`, which rarely fires (prefers API `usage` data). Use dynamic `import()` to defer loading.
+- [x] **Lazy import `tiktoken`**
+  ✅ `tiktoken` WASM (~2MB) lazily loaded via dynamic `import()` on first `countTokens()` call. `getEncodingSafe()` and `countTokens()` are now async.
 
-- [ ] **Fix type assertions for `progressToken` and `sendNotification`**
-  Raw casts like `as { _meta?: ... }` and `as SendNotificationFn` bypass TypeScript safety. Use proper type narrowing or SDK types.
+- [x] **Fix type assertions for `progressToken` and `sendNotification`**
+  ✅ `progressToken` accessed via typed SDK schema (`request.params._meta?.progressToken`). `sendNotification` typed via `ProgressNotification` from SDK types.
 
-- [ ] **Add test for progress notification delivery**
-  `createProgressSender` has no unit tests for edge cases (null token, out-of-order progress, debouncing).
+- [x] **Add test for progress notification delivery**
+  ✅ 5 unit tests for `createProgressSender`: no-op without token, correct structure, deduplication, numeric token, total steps.
 
-- [ ] **Protect concurrent access to metrics**
-  Metrics module mutates shared state without synchronization. Not an issue with stdio transport (sequential), but will race with SSE/WebSocket.
+- [x] **Protect concurrent access to metrics**
+  ✅ All metrics mutations wrapped in `MetricsGuard.run()`. Synchronous guard with generic return type. No async overhead.
 
 ---
 

@@ -213,13 +213,15 @@ cotforce-mcp/
 │       ├── metrics.ts     # In-memory request/performance counters
 │       └── llm.ts         # Direct HTTP LLM client (OpenAI-compatible)
 ├── tests/
-│   ├── parser.test.ts     # 50 unit tests for parser layers
-│   ├── tokens.test.ts     # 16 unit tests for token budgeting
+│   ├── parser.test.ts     # 47 unit tests for parser layers
+│   ├── tokens.test.ts     # 23 unit tests for token budgeting
 │   ├── schema.test.ts     # 8 unit tests for result schema validation
 │   ├── metrics.test.ts    # 9 unit tests for metrics tracking
-│   ├── prompts.test.ts    # 10 unit tests for model-specific prompts
-│   ├── llm.test.ts        # 3 unit tests for direct mode detection
-│   └── server.test.ts     # 11 integration tests via @slbdn/mcp-tester
+│   ├── prompts.test.ts    # 12 unit tests for model-specific prompts
+│   ├── llm.test.ts        # 6 tests for direct mode detection
+│   ├── retry.test.ts      # 4 integration tests for retry loop
+│   ├── progress.test.ts   # 5 unit tests for progress notifications
+│   └── server.test.ts     # 9 integration tests via @slbdn/mcp-tester
 ├── index.js               # Root launcher (delegates to dist/)
 ├── dist/                  # Compiled TypeScript output
 └── package.json
@@ -255,7 +257,7 @@ npm run typecheck  # type-check src/ and tests/
 | `npm run build` | Compile TypeScript (`src/` → `dist/`) |
 | `npm run dev` | Watch mode compilation |
 | `npm run typecheck` | TypeScript type-checking for source and tests |
-| `npm test` | Run full Jest test suite (112 tests) |
+| `npm test` | Run full Jest test suite (123 tests) |
 | `npm run test:smoke` | Quick smoke test via `mcp-tester` CLI |
 | `npm run test:tools` | List available tools via `mcp-tester` CLI |
 
