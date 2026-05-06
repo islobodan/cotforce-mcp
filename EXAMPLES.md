@@ -221,6 +221,136 @@ Here are diverse example prompts that showcase the server's capabilities.
 
 ---
 
+## Extremely Hard Problems (Even 9B Models Struggle With CoT)
+
+### 19. Hamiltonian Path in a Tricky Graph
+**Requires exhaustive backtracking. Easy to miss a valid path or claim non-existence prematurely.**
+```json
+{
+  "name": "solve_problem",
+  "arguments": {
+    "prompt": "Consider a graph with 6 vertices labeled A,B,C,D,E,F. Edges: A-B, A-C, B-D, B-E, C-D, C-F, D-E, D-F, E-F. Find a Hamiltonian path (a path that visits each vertex exactly once). Start from A. Try all possibilities systematically using depth-first search. If you reach a dead end, backtrack and try the next option. Show every path you attempt and why it fails or succeeds.",
+    "resultSchema": {
+      "path": "object",
+      "exists": "boolean"
+    }
+  }
+}
+```
+
+### 20. Chinese Remainder Theorem (3 Congruences)
+**Large numbers. Easy to make arithmetic errors in intermediate steps.**
+```json
+{
+  "name": "solve_problem",
+  "arguments": {
+    "prompt": "Find the smallest positive integer x such that: x ≡ 2 (mod 3), x ≡ 3 (mod 5), x ≡ 2 (mod 7). Use the Chinese Remainder Theorem. First solve the first two congruences to get x ≡ a (mod 15), then combine with the third. Show every modular inverse calculation explicitly.",
+    "resultSchema": {
+      "x": "number",
+      "verification": "object"
+    }
+  }
+}
+```
+
+### 21. Cryptarithmetic (SEND + MORE = MONEY)
+**Each letter is a unique digit. Massive search space. Smaller models make assignment conflicts.**
+```json
+{
+  "name": "solve_problem",
+  "arguments": {
+    "prompt": "Solve the cryptarithmetic puzzle: SEND + MORE = MONEY. Each letter represents a unique digit 0-9. S and M cannot be 0. Start by analyzing column by column from right to left. Use the carry values between columns to constrain assignments. Track which digits are used and which are free. Show each deduction step.",
+    "resultSchema": {
+      "S": "number",
+      "E": "number",
+      "N": "number",
+      "D": "number",
+      "M": "number",
+      "O": "number",
+      "R": "number",
+      "Y": "number"
+    }
+  }
+}
+```
+
+### 22. Exact Cover (Pentomino Tiling)
+**NP-complete. Requires DLX or careful backtracking.**
+```json
+{
+  "name": "solve_problem",
+  "arguments": {
+    "prompt": "A 3x5 rectangular board must be tiled with pentominoes (shapes made of 5 squares). Can it be tiled using exactly 3 pentominoes? Consider that each pentomino covers 5 squares and 3 pentominoes cover 15 squares. Show each pentomino shape you consider and attempt a placement. If it doesn't work, explain why and try another arrangement.",
+    "resultSchema": {
+      "possible": "boolean",
+      "tiling": "object"
+    }
+  }
+}
+```
+
+### 23. Knight's Tour on 5x5 Board
+**Warnsdorff's heuristic or brute force. Many dead ends.**
+```json
+{
+  "name": "solve_problem",
+  "arguments": {
+    "prompt": "A knight starts at position (1,1) on a 5x5 chessboard. Find a sequence of moves that visits every square exactly once (a knight's tour). A knight moves in an L-shape: 2 squares in one direction and 1 square perpendicular. List every move as coordinates. If you get stuck, backtrack to the previous position and try a different move. Show the board state after each move.",
+    "resultSchema": {
+      "tour": "object",
+      "move_count": "number"
+    }
+  }
+}
+```
+
+### 24. Boolean Satisfiability (3-SAT with 5 Variables)
+**Must check all 32 combinations or use unit propagation. Easy to miss a satisfying assignment.**
+```json
+{
+  "name": "solve_problem",
+  "arguments": {
+    "prompt": "Determine if this boolean formula is satisfiable. Variables: a, b, c, d, e. Clauses: (a OR NOT b OR c), (NOT a OR b OR NOT d), (b OR c OR e), (NOT c OR d OR NOT e), (a OR NOT d OR e). Check systematically. Start with a=0 and see if any assignment works. If a=0 leads to contradiction, try a=1. Propagate constraints from each clause.",
+    "resultSchema": {
+      "satisfiable": "boolean",
+      "assignment": "object"
+    }
+  }
+}
+```
+
+### 25. Derangements with Explicit Inclusion-Exclusion
+**Count derangements of {A,B,C,D,E,F}. Must track all 2^6 subset terms without error.**
+```json
+{
+  "name": "solve_problem",
+  "arguments": {
+    "prompt": "Count the number of ways to rearrange 6 letters {A,B,C,D,E,F} so that NO letter appears in its original position. Use inclusion-exclusion: total permutations minus permutations fixing at least one position, plus those fixing at least two, minus those fixing at least three, etc. Compute each term: C(6,1)*5! - C(6,2)*4! + C(6,3)*3! - C(6,4)*2! + C(6,5)*1! - C(6,6)*0!. Show every calculation explicitly before summing.",
+    "resultSchema": {
+      "answer": "number",
+      "terms": "object"
+    }
+  }
+}
+```
+
+### 26. Graph 3-Coloring
+**Must check all assignments or use backtracking. Easy to miss a valid coloring.**
+```json
+{
+  "name": "solve_problem",
+  "arguments": {
+    "prompt": "Color the vertices of this graph with 3 colors (Red, Green, Blue) so no adjacent vertices share a color. Vertices: 1,2,3,4,5. Edges: 1-2, 1-3, 2-3, 2-4, 3-5, 4-5. Try assigning colors one vertex at a time. If a vertex cannot be colored without conflict, backtrack and change the previous vertex's color. Show every assignment attempt and why each succeeds or fails.",
+    "resultSchema": {
+      "colorable": "boolean",
+      "coloring": "object"
+    }
+  }
+}
+```
+
+---
+
 ## Classic Problems (Moderate Difficulty)
 
 ### 15. Logic Puzzle — Mislabeled Boxes
