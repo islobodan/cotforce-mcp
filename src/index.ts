@@ -73,7 +73,31 @@ const SolveProblemArgsSchema = z.object({
 });
 
 // ------------------------------------------------------------------
-// 3. RESULT SCHEMA VALIDATION
+// 3. SAMPLING CAPABILITY CHECK
+// ------------------------------------------------------------------
+let clientSamplingSupported = false;
+
+function checkSamplingCapability(): void {
+  const clientCaps = server.getClientCapabilities();
+  clientSamplingSupported =
+    clientCaps != null &&
+    typeof clientCaps === "object" &&
+    "sampling" in clientCaps;
+}
+
+function assertSamplingSupported(): void {
+  if (!clientSamplingSupported) {
+    throw new McpError(
+      ErrorCode.InternalError,
+      "CotForce requires MCP sampling support (sampling/createMessage), but the connected client does not advertise this capability. " +
+        "Please use an MCP client that supports LLM sampling (e.g., Claude Desktop), " +
+        "or configure a direct LLM provider via HTTP instead of MCP sampling."
+    );
+  }
+}
+
+// ------------------------------------------------------------------
+// 5. RESULT SCHEMA VALIDATION
 // ------------------------------------------------------------------
 export function validateResultSchema(
   result: unknown,
@@ -118,7 +142,7 @@ const server = new Server(
 );
 
 // ------------------------------------------------------------------
-// 5. LLM SAMPLING FUNCTION (with retry logic, model env, temp_increment)
+// 6. LLM SAMPLING FUNCTION (with retry logic, model env, temp_increment)
 // ------------------------------------------------------------------
 interface SamplingResult {
   text: string;
@@ -233,7 +257,7 @@ async function sampleLLM(
 }
 
 // ------------------------------------------------------------------
-// 6. TOOL REGISTRATION
+// 7. TOOL REGISTRATION
 // ------------------------------------------------------------------
 server.setRequestHandler(ListToolsRequestSchema, async () => ({
   tools: [
@@ -260,7 +284,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
 }));
 
 // ------------------------------------------------------------------
-// 7. TOOL EXECUTION WITH CHAOS PROTOCOL
+// 8. TOOL EXECUTION WITH CHAOS PROTOCOL
 // ------------------------------------------------------------------
 server.setRequestHandler(CallToolRequestSchema, async (request) => {
   const requestStart = Date.now();
@@ -282,6 +306,9 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       `Invalid arguments: ${parseArgs.error.message}`
     );
   }
+
+  // Guard: if client doesn't support sampling, fail fast with a helpful error
+  assertSamplingSupported();
 
   const { prompt } = parseArgs.data;
 
@@ -461,20 +488,16 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 });
 
 // ------------------------------------------------------------------
-// 8. START
+// 9. START
 // ------------------------------------------------------------------
 async function main(): Promise<void> {
   const transport = new StdioServerTransport();
   await server.connect(transport);
 
-  const clientCaps = server.getClientCapabilities();
-  const samplingSupported =
-    clientCaps &&
-    typeof clientCaps === "object" &&
-    "sampling" in clientCaps;
-  if (!samplingSupported) {
+  checkSamplingCapability();
+  if (!clientSamplingSupported) {
     logger.warn(
-      "Connected client does NOT advertise sampling support. LLM calls via sampling/createMessage will likely fail."
+      "Connected client does NOT advertise sampling support. LLM calls via sampling/createMessage will fail."
     );
   }
 
@@ -484,7 +507,7 @@ async function main(): Promise<void> {
     baseTemp: parseFloat(process.env.BASE_TEMP || "0.1"),
     tempIncrement: parseFloat(process.env.TEMP_INCREMENT || "0.2"),
     tiktoken: getEncodingSafe() ? "available" : "fallback to heuristic",
-    samplingSupported,
+    samplingSupported: clientSamplingSupported,
   });
 }
 
