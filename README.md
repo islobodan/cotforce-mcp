@@ -215,27 +215,39 @@ COT_PARSERS=direct-json,fenced-block  # skip heuristic and brace-balanced
 
 **What you see:** `MCP error -32001: Request timed out` before the solution appears.
 
-**Why:** Local models (Gemma, Llama via LMStudio) can take 60-90 seconds for complex CoT reasoning. The default timeout is 120 seconds for direct HTTP, but MCP clients may have their own shorter timeout.
+**Why:** Complex CoT reasoning takes time — 60-90 seconds for local models like Gemma. This error can come from **two places**:
 
-**Fix:** Increase the timeout:
+1. **CotForce's own timeout** — default 120s for direct HTTP mode. Controlled by the `TIMEOUT` env var.
+2. **The MCP client's timeout** — LM Studio, Claude Desktop, Cursor, etc. each have their own default timeout for tool calls (often 30-60s). This is separate from CotForce's timeout.
 
+**Fix — check both sides:**
+
+Increase CotForce's timeout:
 ```bash
-TIMEOUT=180000  # 3 minutes, for very slow local models
+TIMEOUT=180000  # 3 minutes
 ```
 
-If the MCP client itself times out (not CotForce), add to your client config:
+Check your MCP client's timeout setting:
 
+**LM Studio** — add `"timeout"` to `mcp.json` (milliseconds):
 ```json
 {
   "mcpServers": {
     "cotforce": {
+      "command": "node",
+      "args": ["index.js"],
       "env": {
         "TIMEOUT": "180000"
-      }
+      },
+      "timeout": 300000
     }
   }
 }
 ```
+
+**Claude Desktop** — the tool call timeout is not directly configurable. A workaround is to increase CotForce's `TIMEOUT` to complete within the client's window, or use a faster model.
+
+**Cursor / VS Code** — check the MCP extension or `.vscode/mcp.json` for a `timeout` or `requestTimeout` setting.
 
 ---
 

@@ -11,8 +11,9 @@
         "MODEL": "local-model",
         "MAX_RETRIES": "2",
         "LOG_LEVEL": "INFO",
-        "TIMEOUT": "60000"
-      }
+        "TIMEOUT": "180000"
+      },
+      "timeout": 300000
     }
   }
 }
