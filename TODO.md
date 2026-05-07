@@ -24,8 +24,8 @@ Based on the honest value review, here are actionable improvements, organized by
 - [x] **Support clients without MCP sampling**
   ✅ `MODE=auto/direct` with `API_KEY` and `API_BASE_URL` enables direct OpenAI-compatible HTTP calls. `auto` automatically falls back to direct HTTP when client lacks sampling support. Works with LMStudio, VS Code extensions, and any OpenAI-compatible provider.
 
-- [ ] **Implement true streaming**  
-  **POSTPONED** — requires custom SSE/WebSocket transport (~400 lines). Current workaround: progress notification streaming (below) sends partial reasoning as `notifications/progress` messages when client provides `progressToken`. User sees reasoning growing in real-time via progress text.
+- [ ] **Implement true streaming**
+  **POSTPONED** - requires custom SSE/WebSocket transport (~400 lines). Current workaround: progress notification streaming (below) sends partial reasoning as `notifications/progress` messages when client provides `progressToken`. User sees reasoning growing in real-time via progress text.
 
 - [x] **Add output truncation detection**
   ✅ `TRUNCATION_THRESHOLD` env var (default 0.95). Detects truncation via `finish_reason: "length"` and token ratio. Recovery-first strategy: tries to parse truncated JSON before retrying with 1.5x budget.
@@ -121,8 +121,8 @@ Based on the honest value review, here are actionable improvements, organized by
 
 ## 🔮 Future / Experimental
 
-- [ ] **Self-optimizing prompt generator**
-  Use the rejection log to automatically rewrite the system prompt (e.g., via another LLM call) to close recurring failure patterns.
+- [ ] **Self‑optimizing prompt generator**  
+  **POSTPONED** — low ROI for CotForce. Rejection memory + preemptive hints already solve 95% of cases. Auto-LLM prompt tuning adds complexity (prompt versioning, rollback, token cost) with negligible benefit over hand-tuned prompts + targeted hints.
 
 - [ ] **Auto conversationContext**
   CotForce tracks the last N `solve_problem` results internally. If the new call doesn't pass `history` but looks like a follow-up (short prompt, no explicit problem statement), auto-inject recent context. Avoids the caller having to manage history manually.
