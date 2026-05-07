@@ -124,8 +124,8 @@ Based on the honest value review, here are actionable improvements, organized by
 - [ ] **Self‑optimizing prompt generator**  
   Use the rejection log to automatically rewrite the system prompt (e.g., via another LLM call) to close recurring failure patterns.
 
-- [ ] **Plug‑in architecture for parsers**  
-  Allow users to write custom parser modules (e.g., YAML, CSV) without modifying core code.
+- [x] **Plug‑in architecture for parsers**  
+  ✅ `CotParser` interface + `ParserPipeline` class. Five built-in parsers as plugins (`direct-json`, `fenced-block`, `heuristic`, `brace-balanced`, `truncated-recovery`). Custom parsers via `addParser()`/`removeParser()`. Env `COT_PARSERS` to select a subset. 133 tests passing.
 
 - [x] **Tool‑specific CoT caching**  
   ✅ `src/lib/cache.ts`: TTL-based cache with configurable `CACHE_TTL` (default 1h) and `CACHE_MAX_ENTRIES` (default 100). Cache key includes prompt + optional resultSchema. Periodic cleanup every 30s. 10 tests.

@@ -11,7 +11,7 @@
 ## 🚀 Features
 
 - **Rigid CoT enforcement** — forces any LLM to output valid JSON `{reasoning, result}` via strict system prompts and few‑shot examples.
-- **Adaptive multi‑layer parser** — four fallback layers handle chaotic LLM outputs:
+- **Adaptive multi‑layer parser** — plug-in architecture with 5 built-in parsers (direct JSON, fenced blocks, XML/labels, brace-balanced, truncated recovery) in a priority-sorted pipeline. Add custom parsers via `CotParser` interface. Select parsers via `COT_PARSERS` env var.
   1. Direct JSON (with code‑fence stripping)
   2. JSON inside markdown fenced blocks
   3. XML / heuristic label extraction (`<reasoning>`, `Reasoning:`)
@@ -28,7 +28,7 @@
 - **Token usage exposure** — every response includes input / output / budget token counts so callers can optimize.
 - **User-supplied result schema** — optional `resultSchema` parameter validates the `result` field type‑map; mismatches trigger retry.
 - **Structured metrics** — in-memory counters for requests, success/fail rates, truncations, retries, latency, and token usage. Logged on shutdown.
-- **Comprehensive test suite** — 80+ tests covering parser layers, token budgeting, metrics, schema validation, and MCP server integration.
+- **Comprehensive test suite** — 133 tests covering parser pipeline, token budgeting, metrics, schema validation, retry loop, progress notifications, caching, and MCP server integration.
 
 ---
 
@@ -60,6 +60,7 @@ The server is configured via environment variables (all optional):
 | `TIMEOUT` | `60000` | Sampling timeout in ms. |
 | `CACHE_TTL` | `3600000` | Result cache TTL in ms (default 1 hour). Set to `0` to disable. |
 | `CACHE_MAX_ENTRIES` | `100` | Maximum cached results before evicting oldest. |
+| `COT_PARSERS` | *(all)* | Comma-separated parser names to use (e.g., `direct-json,fenced-block`). Skips others. |
 | `TRUNCATION_THRESHOLD` | `0.95` | Ratio of output/budget that triggers truncation detection. Attempts truncated JSON recovery first, then retries with 1.5x budget. |
 | `REASONING_OVERHEAD` | `800` | Fixed token overhead added to the budget formula. Increase for verbose models. |
 | `FALLBACK_MODELS` | *(not set)* | Comma-separated list of fallback models (e.g. `gpt-4o,claude-3-5-sonnet`). Cycled on failure. |
@@ -173,6 +174,47 @@ See [EXAMPLES.md](EXAMPLES.md) for 16 diverse examples including:
 If parsing fails after all retries, the server returns the raw LLM output with a warning.
 
 ---
+## 🧩 Custom Parsers
+
+The parser is a priority-sorted pipeline of plugins. Five built-in parsers run in order:
+
+| Priority | Name | What it does |
+|----------|------|-------------|
+| 10 | `direct-json` | Parses whole output as JSON (strips ` ```json` fences) |
+| 20 | `fenced-block` | Extracts JSON from markdown code blocks |
+| 30 | `heuristic` | Looks for `<reasoning>`/`<result>` XML tags or `Reasoning:`/`Result:` labels |
+| 40 | `brace-balanced` | Finds first balanced `{}` in arbitrary text |
+| 50 | `truncated-recovery` | Salvages reasoning from truncated JSON (hit token limit) |
+
+**Filter parsers via `COT_PARSERS` env var:**
+```bash
+COT_PARSERS=direct-json,fenced-block node index.js
+```
+
+**Write a custom parser:**
+```ts
+import { CotParser, AgenticCotSchema } from "@slbdn/cotforce-mcp";
+
+class YamlParser implements CotParser {
+  name = "yaml";
+  priority = 35; // runs after heuristic, before brace-balanced
+
+  parse(raw: string): { reasoning: string; result: unknown } | null {
+    // Custom YAML parsing logic here
+    return null; // return null if this output isn't YAML
+  }
+}
+```
+
+Then register it programmatically:
+```ts
+import { defaultParserPipeline, ParserPipeline } from "@slbdn/cotforce-mcp";
+const pipeline = defaultParserPipeline();
+pipeline.addParser(new YamlParser());
+const result = pipeline.parse(rawText);
+```
+
+---
 
 ## 📚 API
 
@@ -209,7 +251,7 @@ cotforce-mcp/
 ├── src/
 │   ├── index.ts           # MCP server, tool handlers, routing logic
 │   └── lib/
-│       ├── parser.ts      # Multi-layer CoT parser + Zod schemas
+│       ├── parser.ts      # Parser pipeline: CotParser interface + 5 plugin parsers + Zod schemas
 │       ├── tokens.ts      # tiktoken integration + budget computation
 │       ├── prompts.ts     # Model-specific system prompts
 │       ├── metrics.ts     # In-memory request/performance counters
@@ -235,7 +277,7 @@ cotforce-mcp/
 ## 🧠 How It Works
 
 1. **System prompt** enforces JSON output with `reasoning` and `result`. Model-specific variants tuned for Claude, GPT-4, Gemini, Grok.
-2. **Multi‑layer parser** attempts to extract valid JSON from the raw response (direct JSON, fenced blocks, XML/labels, brace-balancing scanner).
+2. **Parser pipeline** runs 5 built-in parsers in priority order (direct JSON, fenced blocks, XML/labels, brace-balanced, truncated recovery). First valid match wins. Custom parsers can be added via `COT_PARSERS` env var and the `CotParser` interface.
 3. **Retry logic** — if parsing fails, injects correction suffix and increases temperature. Supports fallback models (`FALLBACK_MODELS`) when primary model refuses.
 4. **Rejection memory** stores a snippet of the last failure to contextualise the next call (scoped per‑request, thread‑safe).
 5. **Token budgeting** uses `estimateTokens()` (lightweight heuristic) for budget math and `countTokens()` (tiktoken) for exact counts. Sets `maxTokens` dynamically (between 2048 and 8192) via formula `overhead + inputTokens × 4`. Detects truncation via `finish_reason: "length"` and attempts JSON recovery before retrying.
@@ -268,7 +310,7 @@ npm run typecheck  # type-check src/ and tests/
 
 The test suite uses **Jest** with **ts-jest** (ESM) and **`@slbdn/mcp-tester`** for MCP server integration testing:
 
-- **Parser tests** (`tests/parser.test.ts`) — 50 unit tests covering all 4 parser layers, edge cases, and `AgenticCotSchema` validation.
+- **Parser tests** (`tests/parser.test.ts`) — 47 unit tests covering all 5 parser plugins, edge cases, and `AgenticCotSchema` validation.
 - **Token tests** (`tests/tokens.test.ts`) — 16 unit tests for `tiktoken` integration, budget computation, and `REASONING_OVERHEAD` tuning.
 - **Schema tests** (`tests/schema.test.ts`) — 8 unit tests for user-supplied `resultSchema` validation.
 - **Metrics tests** (`tests/metrics.test.ts`) — 9 unit tests for request counters, latency tracking, and token usage averages.
