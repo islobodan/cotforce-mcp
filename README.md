@@ -82,7 +82,7 @@ That's it. The same 4B Gemma that couldn't solve SEND+MORE=MONEY above — now w
 ## 📦 Installation
 
 ```bash
-npm install cotforce-mcp
+npm install @slbdn/cotforce-mcp
 # or
 git clone https://github.com/islobodan/cotforce-mcp
 cd cotforce-mcp
