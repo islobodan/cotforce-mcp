@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.1.2] - 2026-05-07
+
+### Fixed
+- Direct HTTP fetch timeout: added `AbortSignal.timeout()` with `TIMEOUT` env var (default 120s for direct mode). Slow local models (e.g. Gemma 4B ~82s) no longer cause MCP client timeout.
+
 ## [1.1.1] - 2026-05-07
 
 ### Changed
@@ -80,7 +85,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Removed
 - Inert `STREAM` flag
 
-[Unreleased]: https://github.com/islobodan/cotforce-mcp/compare/v1.1.1...HEAD
+[Unreleased]: https://github.com/islobodan/cotforce-mcp/compare/v1.1.2...HEAD
+[1.1.2]: https://github.com/islobodan/cotforce-mcp/compare/v1.1.1...v1.1.2
 [1.1.1]: https://github.com/islobodan/cotforce-mcp/compare/v1.1.0...v1.1.1
 [1.1.0]: https://github.com/islobodan/cotforce-mcp/compare/v1.0.0...v1.1.0
 [1.0.0]: https://github.com/islobodan/cotforce-mcp/releases/tag/v1.0.0
