@@ -62,7 +62,6 @@
     "CHANGELOG.md",
     "EXAMPLES.md",
     "examples",
-    ".mcp.json",
-    "mcp.json"
+    ".mcp.json"
   ]
 }
