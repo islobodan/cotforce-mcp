@@ -1,9 +1,29 @@
 # CotForce-MCP
 
-> **Strict Chain‑of‑Thought Enforcement MCP Server**  
-> Forces LLMs to produce structured `{reasoning, result}` JSON, with adaptive parsing, retry logic, token budgeting (via tiktoken), and configurable model.
+> **"Give brains to your small models."**  
+> CotForce enforces step-by-step Chain-of-Thought, turning 4B parameter models into methodical reasoners.
 
-[![Node](https://img.shields.io/badge/node-%3E%3D18-brightgreen)](https://nodejs.org)
+---
+
+### Why this exists
+
+A **4-billion-parameter Gemma** cannot solve SEND + MORE = MONEY. It's a classic cryptarithmetic puzzle — 8 unique digits, 5 columns, 4 carry values. A bare 4B model guesses randomly. It hallucinates digits. It loses track of carries after column 2.
+
+**The same model, with CotForce:**
+
+```
+Step 1: Analyze the leftmost column. S+M+C3 = MO. Max sum is 19998. ∴ M=1.
+Step 2: S+1+C3 = 10+O. With M=1 and carry, O must be 0.
+Step 3: D+E = Y+10C1 → C1=1. Now R+C1=9 → C1=0→R=9 (used), C1=1→R=8.
+...
+Step 11: All digits assigned. 9567 + 1085 = 10652. Verified.
+```
+
+**11 structured reasoning steps. Zero hallucinations. Correct answer.**
+
+CotForce doesn't make small models smarter. It forces them to **think before they speak** — which is often all they need.
+
+---[![Node](https://img.shields.io/badge/node-%3E%3D18-brightgreen)](https://nodejs.org)
 [![MCP](https://img.shields.io/badge/MCP-1.0-blue)](https://modelcontextprotocol.io)
 
 ---
