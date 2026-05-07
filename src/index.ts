@@ -120,8 +120,8 @@ function buildCoTResult(
   modelMeta: string
 ): { content: Array<{ type: "text"; text: string }> } {
   const content: Array<{ type: "text"; text: string }> = [
-    { type: "text", text: formatResult(reasoning) },
-    { type: "text", text: formatResult(result) },
+    { type: "text", text: `📝 Reasoning:\n${formatResult(reasoning)}` },
+    { type: "text", text: `✅ Result:\n${formatResult(result)}` },
   ];
   const meta = [tokenMeta, modelMeta].filter(Boolean).join(" ").trim();
   if (meta) {
