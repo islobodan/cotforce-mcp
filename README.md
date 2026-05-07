@@ -92,6 +92,26 @@ npm run build
 
 Requires **Node.js ≥ 18**.
 
+### Quick start — Claude Desktop
+
+Add to `claude_desktop_config.json`:
+
+```json
+{
+  "mcpServers": {
+    "cotforce": {
+      "command": "npx",
+      "args": ["-y", "@slbdn/cotforce-mcp"],
+      "env": {
+        "MODEL": "claude-3-5-sonnet"
+      }
+    }
+  }
+}
+```
+
+No clone, no build. `npx -y` pulls and runs directly from npm.
+
 ---
 
 ## 🔧 Configuration
