@@ -16,14 +16,16 @@ function createMockLLMServer(
     body: string;
     finishReason?: string;
   }>
-): { port: number; close: () => void; callCount: () => number } {
+): { port: number; close: () => void; callCount: () => number; lastBody: () => string } {
   let callCount = 0;
+  let lastRequest = "";
   const server = http.createServer((req, res) => {
     // Collect body for validation
     let body = "";
     req.on("data", (chunk: Buffer) => (body += chunk.toString()));
 
     req.on("end", () => {
+      lastRequest = body;
       const idx = Math.min(callCount, responses.length - 1);
       const resp = responses[idx];
       callCount++;
@@ -66,6 +68,7 @@ function createMockLLMServer(
     port,
     close: () => server.close(),
     callCount: () => callCount,
+    lastBody: () => lastRequest,
   };
 }
 
@@ -226,6 +229,42 @@ describe("Retry Loop Integration", () => {
       const text = getText(result);
       expect(text).toContain("could not be parsed");
       expect(mockServer.callCount()).toBe(6);
+    });
+  });
+
+  describe("Multi-turn history", () => {
+    it("injects previous reasoning as context", async () => {
+      mockServer = createMockLLMServer([
+        {
+          body: '{"reasoning": "Previous result was 56. New step: 56 / 4 = 14.", "result": 14}',
+        },
+      ]);
+
+      await startClient({
+        API_BASE_URL: `http://localhost:${mockServer.port}/v1`,
+        MODEL: "test-model",
+      });
+
+      await client.callTool({
+        name: "solve_problem",
+        arguments: {
+          prompt: "Divide that by 4",
+          history: [
+            { reasoning: "7 * 8 = 56", result: 56 },
+          ],
+        },
+      });
+
+      // Verify the LLM received the history context in the prompt
+      const lastBody = mockServer.lastBody();
+      const parsed = JSON.parse(lastBody);
+      const userContent = parsed.messages.find(
+        (m: { role: string }) => m.role === "user"
+      )?.content || "";
+      expect(userContent).toContain("[PREVIOUS REASONING CHAIN]");
+      expect(userContent).toContain("7 * 8 = 56");
+      expect(userContent).toContain("[NEXT STEP]");
+      expect(mockServer.callCount()).toBe(1);
     });
   });
 });

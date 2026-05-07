@@ -85,6 +85,15 @@ const SolveProblemArgsSchema = z.object({
   resultSchema: z.record(z.any()).optional().describe(
     "Optional JSON schema to validate the result field against"
   ),
+  history: z
+    .array(
+      z.object({
+        reasoning: z.string(),
+        result: z.any(),
+      })
+    )
+    .optional()
+    .describe("Previous CoT steps to build on for multi-turn reasoning"),
 });
 
 // ------------------------------------------------------------------
@@ -424,6 +433,18 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
             type: "object",
             description: "Optional JSON schema to validate the result field against.",
           },
+          history: {
+            type: "array",
+            items: {
+              type: "object",
+              properties: {
+                reasoning: { type: "string", description: "Previous reasoning step" },
+                result: { description: "Previous result" },
+              },
+              required: ["reasoning", "result"],
+            },
+            description: "Previous CoT steps to build on for multi-turn reasoning",
+          },
         },
         required: ["prompt"],
       },
@@ -471,9 +492,20 @@ server.setRequestHandler(CallToolRequestSchema, async (request, extra) => {
 
   const { prompt } = parseArgs.data;
   const resultSchema = parseArgs.data.resultSchema;
+  const history = parseArgs.data.history;
+
+  // Build the effective prompt — prepend history context if present
+  const effectivePrompt = history?.length
+    ? `[PREVIOUS REASONING CHAIN]\n${history
+        .map(
+          (h, i) =>
+            `Step ${i + 1}: ${h.reasoning} → Result: ${formatResult(h.result)}`
+        )
+        .join("\n")}\n\n[NEXT STEP]\n${prompt}`
+    : prompt;
 
   // Check cache before hitting the LLM
-  const cacheKey = buildCacheKey(prompt, resultSchema);
+  const cacheKey = buildCacheKey(effectivePrompt, resultSchema);
   const cached = resultCache.get(cacheKey);
   if (cached) {
     recordSuccess();
@@ -532,7 +564,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request, extra) => {
       await notifyProgress(stepNum, `Calling LLM (attempt ${attempt + 1}/${MAX_RETRIES + 1}, model: ${currentModel ?? "default"})`);
 
       try {
-        const samplingResult = await sampleLLM(prompt, lastRejectionMemo, {
+        const samplingResult = await sampleLLM(effectivePrompt, lastRejectionMemo, {
           temperature,
           isRetry,
           modelOverride: currentModel,

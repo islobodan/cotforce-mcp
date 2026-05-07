@@ -49,7 +49,7 @@ Based on the honest value review, here are actionable improvements, organized by
 - [x] **Add `REJECTION_MEMO_MAX_LENGTH` constant**
   ✅ Named constants: `REJECTION_MEMO_MAX_LENGTH=500`, `RETRY_CONTEXT_MAX_LENGTH=300`. No more magic numbers.
 
-- [x] **Multi-session rejection memory**  
+- [x] **Multi-session rejection memory**
   ✅ Sliding window of last 10 failures across requests. Detects 8 failure patterns (markdown-fences, preamble, no-reasoning, result-explanation, no-json, truncated, schema-mismatch, unknown). Injects preemptive hint when a pattern recurs 2+ times. TTL 30min, configurable.
 
 - [x] **Validate output against a user-supplied schema**
@@ -83,8 +83,8 @@ Based on the honest value review, here are actionable improvements, organized by
 - [x] **Add rate limiting / concurrency control**
   ✅ Not needed - MCP stdio transport processes requests serially. LLM providers already enforce their own rate limits. True streaming (SSE/WebSocket) would be required before concurrency is possible.
 
-- [ ] **Support for chat-style multi-turn CoT**
-  Allow the tool to accept a `history` parameter (previous messages) so the LLM can build on prior reasoning. Useful for iterative problem solving.
+- [x] **Support for chat-style multi-turn CoT**
+  ✅ Added optional `history` parameter to `solve_problem`. When provided, previous reasoning/result pairs are injected as `[PREVIOUS REASONING CHAIN]` context before the new prompt. Cache key includes full effective prompt with history.
 
 ---
 
@@ -121,8 +121,11 @@ Based on the honest value review, here are actionable improvements, organized by
 
 ## 🔮 Future / Experimental
 
-- [ ] **Self-optimizing prompt generator**
+- [ ] **Self‑optimizing prompt generator**  
   Use the rejection log to automatically rewrite the system prompt (e.g., via another LLM call) to close recurring failure patterns.
+
+- [ ] **Auto conversationContext**  
+  CotForce tracks the last N `solve_problem` results internally. If the new call doesn't pass `history` but looks like a follow-up (short prompt, no explicit problem statement), auto-inject recent context. Avoids the caller having to manage history manually.
 
 - [x] **Plug-in architecture for parsers**
   ✅ `CotParser` interface + `ParserPipeline` class. Five built-in parsers as plugins (`direct-json`, `fenced-block`, `heuristic`, `brace-balanced`, `truncated-recovery`). Custom parsers via `addParser()`/`removeParser()`. Env `COT_PARSERS` to select a subset. 133 tests passing.
