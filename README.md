@@ -1,5 +1,9 @@
 # CotForce-MCP
 
+[![Node](https://img.shields.io/badge/node-%3E%3D18-brightgreen)](https://nodejs.org)
+[![MCP](https://img.shields.io/badge/MCP-1.0-blue)](https://modelcontextprotocol.io)
+[![License](https://img.shields.io/badge/license-MIT-green)](./LICENSE)
+
 > **"Give brains to your small models."**  
 > CotForce enforces step-by-step Chain-of-Thought, turning 4B parameter models into methodical reasoners.
 
@@ -22,9 +26,6 @@ Step 11: All digits assigned. 9567 + 1085 = 10652. Verified.
 **11 structured reasoning steps. Zero hallucinations. Correct answer.**
 
 CotForce doesn't make small models smarter. It forces them to **think before they speak** — which is often all they need.
-
----[![Node](https://img.shields.io/badge/node-%3E%3D18-brightgreen)](https://nodejs.org)
-[![MCP](https://img.shields.io/badge/MCP-1.0-blue)](https://modelcontextprotocol.io)
 
 ---
 
