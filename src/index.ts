@@ -33,6 +33,7 @@ import {
 } from "./lib/metrics.js";
 import { callDirectLLM, isDirectModeConfigured } from "./lib/llm.js";
 import { createResultCache, buildCacheKey } from "./lib/cache.js";
+import { createRejectionMemory, detectPattern } from "./lib/rejection-memory.js";
 
 // ------------------------------------------------------------------
 // 1. LOGGING (Structured, with levels)
@@ -419,6 +420,9 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
 // Result cache — shared across requests
 const resultCache = createResultCache();
 
+// Multi-session rejection memory — tracks failure patterns across requests
+const rejectionMemory = createRejectionMemory();
+
 server.setRequestHandler(CallToolRequestSchema, async (request, extra) => {
   const requestStart = Date.now();
   recordRequest();
@@ -484,6 +488,17 @@ server.setRequestHandler(CallToolRequestSchema, async (request, extra) => {
 
   let lastRaw: string | null = null;
   let lastRejectionMemo: string | null = null;
+
+  // If we've seen recurring failure patterns, inject a preemptive hint
+  const preemptiveHint = rejectionMemory.buildPreemptiveHint();
+  if (preemptiveHint) {
+    lastRejectionMemo = preemptiveHint;
+    logger.info("Injected preemptive hint from rejection memory", {
+      pattern: rejectionMemory.mostFrequent(),
+      windowSize: rejectionMemory.getWindow().length,
+    });
+  }
+
   let lastTokenCount: SamplingResult["tokenCount"] | null = null;
   let lastError: string | null = null;
   let modelIndex = 0;
@@ -580,6 +595,11 @@ server.setRequestHandler(CallToolRequestSchema, async (request, extra) => {
             newBudget,
             model: currentModel ?? "host default",
           });
+          rejectionMemory.record({
+            pattern: "truncated",
+            timestamp: Date.now(),
+            snippet: samplingResult.text.slice(0, 200),
+          });
           if (attempt === MAX_RETRIES) break;
           continue;
         }
@@ -599,6 +619,11 @@ server.setRequestHandler(CallToolRequestSchema, async (request, extra) => {
               logger.warn("Result schema validation failed", {
                 attempt,
                 error: schemaValidation.error,
+              });
+              rejectionMemory.record({
+                pattern: "schema-mismatch",
+                timestamp: Date.now(),
+                snippet: samplingResult.text.slice(0, 200),
               });
               if (attempt === MAX_RETRIES) break;
               continue;
@@ -641,6 +666,11 @@ server.setRequestHandler(CallToolRequestSchema, async (request, extra) => {
           snippetLength: lastRejectionMemo.length,
           model: currentModel ?? "host default",
         });
+        rejectionMemory.record({
+          pattern: detectPattern(samplingResult.text),
+          timestamp: Date.now(),
+          snippet: samplingResult.text.slice(0, 200),
+        });
 
         if (attempt === MAX_RETRIES) break;
       } catch (err) {
@@ -648,6 +678,11 @@ server.setRequestHandler(CallToolRequestSchema, async (request, extra) => {
         const errMsg = err instanceof Error ? err.message : String(err);
         lastError = errMsg;
         lastRejectionMemo = `[Sampling error]: ${errMsg}`;
+        rejectionMemory.record({
+          pattern: detectPattern("", { parseError: errMsg }),
+          timestamp: Date.now(),
+          snippet: errMsg.slice(0, 200),
+        });
         logger.error("Attempt failed with exception", {
           attempt,
           error: lastRejectionMemo,

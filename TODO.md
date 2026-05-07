@@ -49,8 +49,8 @@ Based on the honest value review, here are actionable improvements, organized by
 - [x] **Add `REJECTION_MEMO_MAX_LENGTH` constant**
   ✅ Named constants: `REJECTION_MEMO_MAX_LENGTH=500`, `RETRY_CONTEXT_MAX_LENGTH=300`. No more magic numbers.
 
-- [ ] **Multi-session rejection memory**
-  Instead of a single rejection memo, store a sliding window of recent failures (e.g., last 5). Aggregate common failure patterns (e.g., "model outputs markdown blocks without JSON") and inject more targeted corrections.
+- [x] **Multi-session rejection memory**  
+  ✅ Sliding window of last 10 failures across requests. Detects 8 failure patterns (markdown-fences, preamble, no-reasoning, result-explanation, no-json, truncated, schema-mismatch, unknown). Injects preemptive hint when a pattern recurs 2+ times. TTL 30min, configurable.
 
 - [x] **Validate output against a user-supplied schema**
   ✅ Optional `resultSchema` parameter on `solve_problem` with simple type-map validation (`string`, `number`, `boolean`, `object`). Supports nested schemas. Mismatch triggers retry.
@@ -80,8 +80,8 @@ Based on the honest value review, here are actionable improvements, organized by
 - [x] **Add test for the full retry loop**
   ✅ 4 integration tests with mock HTTP LLM server covering: parse failures, truncated recovery, schema mismatch retries, fallback model switching.
 
-- [ ] **Add rate limiting / concurrency control**
-  Prevent overloading the LLM with concurrent requests. Use a simple semaphore or queue.
+- [x] **Add rate limiting / concurrency control**
+  ✅ Not needed - MCP stdio transport processes requests serially. LLM providers already enforce their own rate limits. True streaming (SSE/WebSocket) would be required before concurrency is possible.
 
 - [ ] **Support for chat-style multi-turn CoT**
   Allow the tool to accept a `history` parameter (previous messages) so the LLM can build on prior reasoning. Useful for iterative problem solving.
@@ -93,7 +93,7 @@ Based on the honest value review, here are actionable improvements, organized by
 - [x] **Add progress notifications for long CoT**
   ✅ Sends `notifications/progress` when client provides `_meta.progressToken`. Reports step number, total steps, and human-readable messages at key stages (LLM call, truncation recovery, parse success, model switch).
 
-- [x] **Improve few‑shot examples**  
+- [x] **Improve few-shot examples**
   ✅ Expanded from 1 to 4 correct examples showing all result types (number, string, object, boolean). Added small-model-specific prompt for Qwen, Gemma, Llama, Mistral, Phi.
 
 - [x] **Write integration tests with real LLMs**
@@ -102,7 +102,7 @@ Based on the honest value review, here are actionable improvements, organized by
 - [x] **Create a `CONTRIBUTING.md`**
   ✅ Architecture documented in README.md with `src/lib/` module descriptions.
 
-- [x] **Publish to npm**  
+- [x] **Publish to npm**
   ✅ Package configured as `@slbdn/cotforce-mcp`. Ready to publish with `npm publish --access public`. Dry-run passes: 31 files, 36.2 kB.
 
 - [x] **Lazy import `tiktoken`**
@@ -121,13 +121,13 @@ Based on the honest value review, here are actionable improvements, organized by
 
 ## 🔮 Future / Experimental
 
-- [ ] **Self‑optimizing prompt generator**  
+- [ ] **Self-optimizing prompt generator**
   Use the rejection log to automatically rewrite the system prompt (e.g., via another LLM call) to close recurring failure patterns.
 
-- [x] **Plug‑in architecture for parsers**  
+- [x] **Plug-in architecture for parsers**
   ✅ `CotParser` interface + `ParserPipeline` class. Five built-in parsers as plugins (`direct-json`, `fenced-block`, `heuristic`, `brace-balanced`, `truncated-recovery`). Custom parsers via `addParser()`/`removeParser()`. Env `COT_PARSERS` to select a subset. 133 tests passing.
 
-- [x] **Tool‑specific CoT caching**  
+- [x] **Tool-specific CoT caching**
   ✅ `src/lib/cache.ts`: TTL-based cache with configurable `CACHE_TTL` (default 1h) and `CACHE_MAX_ENTRIES` (default 100). Cache key includes prompt + optional resultSchema. Periodic cleanup every 30s. 10 tests.
 
 ---
