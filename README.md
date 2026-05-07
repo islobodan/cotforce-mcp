@@ -75,7 +75,7 @@ That's it. The same 4B Gemma that couldn't solve SEND+MORE=MONEY above — now w
 - **Token usage exposure** — every response includes input / output / budget token counts so callers can optimize.
 - **User-supplied result schema** — optional `resultSchema` parameter validates the `result` field type‑map; mismatches trigger retry.
 - **Structured metrics** — in-memory counters for requests, success/fail rates, truncations, retries, latency, and token usage. Logged on shutdown.
-- **Comprehensive test suite** — 133 tests covering parser pipeline, token budgeting, metrics, schema validation, retry loop, progress notifications, caching, and MCP server integration.
+- **Comprehensive test suite** — **151 tests** covering parser pipeline, token budgeting, metrics, schema validation, retry loop, progress notifications, caching, and MCP server integration.
 
 ---
 

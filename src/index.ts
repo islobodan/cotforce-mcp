@@ -228,7 +228,7 @@ export function validateResultSchema(
 // 8. SERVER INITIALIZATION
 // ------------------------------------------------------------------
 const server = new Server(
-  { name: "cotforce-mcp", version: "1.0.0" },
+  { name: "cotforce-mcp", version: "1.1.0" },
   { capabilities: { tools: {} } }
 );
 
