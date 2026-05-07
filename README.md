@@ -233,7 +233,7 @@ See [EXAMPLES.md](EXAMPLES.md) for 16 diverse examples including:
 {
   "content": [{
     "type": "text",
-    "text": "🤖 Agentic CoT Result:\n\n**Reasoning:** Step 1: Multiply 7 * 8 = 56. Step 2: Add 2 to get 58.\n\n**Answer:** 58\n\n📊 Token Usage: 42 in / 150 out / 2048 budget"
+    "text": "🤖 Agentic CoT Result:\n\n**Reasoning:** Step 1: Multiply 7 * 8 = 56. Step 2: Add 2 to get 58.\n\n**Answer:** 58\n\n📊 Token Usage: 42 in / 150 out / 4096 budget"
   }]
 }
 ```
@@ -347,7 +347,7 @@ cotforce-mcp/
 2. **Parser pipeline** runs 5 built-in parsers in priority order (direct JSON, fenced blocks, XML/labels, brace-balanced, truncated recovery). First valid match wins. Custom parsers can be added via `COT_PARSERS` env var and the `CotParser` interface.
 3. **Retry logic** — if parsing fails, injects correction suffix and increases temperature. Supports fallback models (`FALLBACK_MODELS`) when primary model refuses.
 4. **Rejection memory** stores a snippet of the last failure to contextualise the next call (scoped per‑request, thread‑safe).
-5. **Token budgeting** uses `estimateTokens()` (lightweight heuristic) for budget math and `countTokens()` (tiktoken) for exact counts. Sets `maxTokens` dynamically (between 2048 and 8192) via formula `overhead + inputTokens × 4`. Detects truncation via `finish_reason: "length"` and attempts JSON recovery before retrying.
+5. **Token budgeting** uses `estimateTokens()` (lightweight heuristic) for budget math and `countTokens()` (tiktoken) for exact counts. Sets `maxTokens` dynamically (between 4096 and 8192) via formula `overhead + inputTokens × 4`. Detects truncation via `finish_reason: "length"` and attempts JSON recovery before retrying.
 
 ---
 

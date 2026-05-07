@@ -59,7 +59,7 @@ export function computeTokenBudget(
   const inputTokens = estimateTokens(fullInput);
   const overhead = opts?.overhead ?? parseInt(process.env.REASONING_OVERHEAD || "800", 10);
   const recommended = overhead + inputTokens * 4;
-  const min = opts?.min ?? 2048;
+  const min = opts?.min ?? 4096;
   const max = opts?.max ?? 8192;
   return {
     budget: Math.min(max, Math.max(min, recommended)),

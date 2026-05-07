@@ -49,7 +49,7 @@ describe("countTokens", () => {
 describe("computeTokenBudget", () => {
   it("returns at least the minimum budget", () => {
     const { budget } = computeTokenBudget("hi", "system");
-    expect(budget).toBeGreaterThanOrEqual(2048);
+    expect(budget).toBeGreaterThanOrEqual(4096);
   });
 
   it("returns at most the maximum budget", () => {
@@ -74,7 +74,8 @@ describe("computeTokenBudget", () => {
   });
 
   it("respects custom overhead", () => {
-    const prompt = "Lorem ipsum dolor sit amet, consectetur adipiscing elit. ".repeat(50);
+    // Use a long enough prompt that budget exceeds the minimum (4096)
+    const prompt = "Lorem ipsum dolor sit amet, consectetur adipiscing elit. ".repeat(100);
     const { budget: withDefault } = computeTokenBudget(prompt, "system");
     const { budget: withCustom } = computeTokenBudget(prompt, "system", { overhead: 100 });
     expect(withCustom).toBeLessThan(withDefault);
