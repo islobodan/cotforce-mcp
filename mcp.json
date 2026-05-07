@@ -1,0 +1,19 @@
+{
+  "$schema": "https://raw.githubusercontent.com/modelcontextprotocol/specification/main/schemas/mcp-config.json",
+  "mcpServers": {
+    "cotforce-mcp": {
+      "description": "Strict Chain-of-Thought enforcement MCP server",
+      "command": "node",
+      "args": ["${workspaceFolder}/index.js"],
+      "env": {
+        "MODE": "auto",
+        "API_BASE_URL": "http://localhost:1234/v1",
+        "MODEL": "local-model",
+        "MAX_RETRIES": "2",
+        "LOG_LEVEL": "INFO",
+        "TIMEOUT": "180000"
+      },
+      "timeout": 300000
+    }
+  }
+}
