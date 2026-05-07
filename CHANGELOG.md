@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.1.1] - 2026-05-07
+
+### Changed
+- Minimum token budget bumped: 2048 → 4096. Complex reasoning (e.g., SEND+MORE) now fits without truncation.
+
 ## [1.1.0] - 2026-05-07
 
 ### Added
@@ -75,6 +80,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Removed
 - Inert `STREAM` flag
 
-[Unreleased]: https://github.com/islobodan/cotforce-mcp/compare/v1.1.0...HEAD
+[Unreleased]: https://github.com/islobodan/cotforce-mcp/compare/v1.1.1...HEAD
+[1.1.1]: https://github.com/islobodan/cotforce-mcp/compare/v1.1.0...v1.1.1
 [1.1.0]: https://github.com/islobodan/cotforce-mcp/compare/v1.0.0...v1.1.0
 [1.0.0]: https://github.com/islobodan/cotforce-mcp/releases/tag/v1.0.0
