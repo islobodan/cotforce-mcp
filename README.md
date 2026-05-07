@@ -29,6 +29,32 @@ CotForce doesn't make small models smarter. It forces them to **think before the
 
 ---
 
+### ⚡ Two modes — one line of config
+
+CotForce uses the **MCP sampling protocol** (`sampling/createMessage`) to call LLMs. If your client supports it (Claude Desktop, Cursor), nothing extra is needed.
+
+If not — or if you're using a **local model** like Gemma via LMStudio — switch to direct HTTP mode:
+
+```json
+{
+  "mcpServers": {
+    "cotforce": {
+      "command": "node",
+      "args": ["node_modules/@slbdn/cotforce-mcp/index.js"],
+      "env": {
+        "MODE": "direct",
+        "API_BASE_URL": "http://localhost:1234/v1",
+        "MODEL": "gemma-4-e4b-it-mlx"
+      }
+    }
+  }
+}
+```
+
+That's it. The same 4B Gemma that couldn't solve SEND+MORE=MONEY above — now with CotForce, working locally through LMStudio.
+
+---
+
 ## 🚀 Features
 
 - **Rigid CoT enforcement** — forces any LLM to output valid JSON `{reasoning, result}` via strict system prompts and few‑shot examples.
