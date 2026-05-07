@@ -1,6 +1,7 @@
 # Dev docs
 AGENTS.md
 TODO.md
+server.json
 
 # Source (compiled to dist/)
 src/
