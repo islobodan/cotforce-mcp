@@ -2,6 +2,7 @@
   "name": "@slbdn/cotforce-mcp",
   "version": "1.1.2",
   "description": "Strict Chain‑of‑Thought Enforcement MCP Server – forces LLMs to produce structured CoT outputs with adaptive parsing, retry logic, token budgeting, and configurable model.",
+  "mcpName": "cotforce-mcp",
   "main": "index.js",
   "types": "dist/index.d.ts",
   "type": "module",
