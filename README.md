@@ -152,7 +152,6 @@ Add to your MCP client configuration. A `.mcp.json` file is included in the pack
 
 **With MCP sampling** (Claude Desktop):
 
-**With MCP sampling** (Claude Desktop):
 ```json
 {
   "mcpServers": {
@@ -189,6 +188,56 @@ Add to your MCP client configuration. A `.mcp.json` file is included in the pack
 > **Note:** `API_KEY` is optional for local endpoints like LMStudio or Ollama. It is required for remote providers like OpenAI or Anthropic.
 
 > The root `index.js` is a launcher that delegates to `dist/index.js`. It guards against missing builds with a helpful error message.
+
+---
+
+## 🩺 Troubleshooting
+
+### Response truncated mid-reasoning
+
+**What you see:** `finish_reason: "length"` in the LLM response. The reasoning cuts off before the `result` field.
+
+**Why:** The token budget is too tight. Complex reasoning (like SEND+MORE=MONEY) can need 3000+ output tokens, but the default minimum is 4096 — while the default model-level cap can vary.
+
+**Fix:** Increase the budget overhead:
+
+```bash
+REASONING_OVERHEAD=1600  # default is 800, raise for verbose models
+```
+
+Or skip token-heavy parser layers to save budget for reasoning:
+
+```bash
+COT_PARSERS=direct-json,fenced-block  # skip heuristic and brace-balanced
+```
+
+### MCP client timeout
+
+**What you see:** `MCP error -32001: Request timed out` before the solution appears.
+
+**Why:** Local models (Gemma, Llama via LMStudio) can take 60-90 seconds for complex CoT reasoning. The default timeout is 120 seconds for direct HTTP, but MCP clients may have their own shorter timeout.
+
+**Fix:** Increase the timeout:
+
+```bash
+TIMEOUT=180000  # 3 minutes, for very slow local models
+```
+
+If the MCP client itself times out (not CotForce), add to your client config:
+
+```json
+{
+  "mcpServers": {
+    "cotforce": {
+      "env": {
+        "TIMEOUT": "180000"
+      }
+    }
+  }
+}
+```
+
+---
 
 ### Call the Tool
 
