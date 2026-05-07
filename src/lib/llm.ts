@@ -27,6 +27,8 @@ export interface DirectLLMOptions {
   baseUrl: string;
   /** Optional streaming callback. If set, uses SSE streaming mode. */
   onChunk?: (accumulated: string, tokenCount: number) => void;
+  /** Optional timeout in ms for the HTTP call. Defaults to no timeout. */
+  timeoutMs?: number;
 }
 
 export interface DirectLLMResult {
@@ -66,6 +68,7 @@ export async function callDirectLLM(
     method: "POST",
     headers,
     body: JSON.stringify(body),
+    signal: options.timeoutMs ? AbortSignal.timeout(options.timeoutMs) : undefined,
   });
 
   if (!response.ok) {

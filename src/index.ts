@@ -323,6 +323,7 @@ async function sampleLLM(
         apiKey,
         baseUrl,
         onChunk: options?.onChunk,
+        timeoutMs: parseInt(process.env.TIMEOUT || "120000", 10),
       });
 
       const fullText = result.text;
