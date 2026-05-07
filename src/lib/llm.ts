@@ -25,6 +25,8 @@ export interface DirectLLMOptions {
   temperature: number;
   apiKey: string;
   baseUrl: string;
+  /** Optional streaming callback. If set, uses SSE streaming mode. */
+  onChunk?: (accumulated: string, tokenCount: number) => void;
 }
 
 export interface DirectLLMResult {
@@ -50,6 +52,7 @@ export async function callDirectLLM(
     ],
     max_tokens: options.maxTokens,
     temperature: options.temperature,
+    stream: Boolean(options.onChunk),
   };
 
   const headers: Record<string, string> = {
@@ -72,6 +75,12 @@ export async function callDirectLLM(
     );
   }
 
+  // Streaming mode — read SSE chunks with onChunk callback
+  if (options.onChunk && response.body) {
+    return streamSSE(response.body, options.onChunk);
+  }
+
+  // Non-streaming mode
   const data = (await response.json()) as {
     choices?: Array<{
       message?: { content?: string };
@@ -99,4 +108,84 @@ export function isDirectModeConfigured(): boolean {
   if (mode === "sampling") return false;
   // auto: direct if API_KEY is set, or API_BASE_URL is set (local endpoint)
   return Boolean(process.env.API_KEY) || Boolean(process.env.API_BASE_URL);
+}
+
+/**
+ * Parse an OpenAI-compatible SSE event stream.
+ * Each chunk: data: {"choices":[{"delta":{"content":"text"}}]}\n\n
+ */
+async function streamSSE(
+  body: ReadableStream<Uint8Array>,
+  onChunk: (accumulated: string, tokenCount: number) => void
+): Promise<DirectLLMResult> {
+  const reader = body.getReader();
+  const decoder = new TextDecoder();
+  let accumulated = "";
+  let tokenCount = 0;
+  let finishReason: string | undefined;
+  let buffer = "";
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+
+    buffer += decoder.decode(value, { stream: true });
+
+    // Parse SSE lines: each starts with "data: "
+    const lines = buffer.split("\n");
+    buffer = lines.pop() || ""; // keep incomplete line in buffer
+
+    for (const line of lines) {
+      const trimmed = line.trim();
+      if (!trimmed.startsWith("data: ")) continue;
+      const json = trimmed.slice(6);
+      if (json === "[DONE]") continue;
+
+      try {
+        const parsed = JSON.parse(json) as {
+          choices?: Array<{ delta?: { content?: string }; finish_reason?: string }>;
+        };
+        const choice = parsed.choices?.[0];
+        if (choice?.delta?.content) {
+          accumulated += choice.delta.content;
+          tokenCount++;
+          onChunk(accumulated, tokenCount);
+        }
+        if (choice?.finish_reason) {
+          finishReason = choice.finish_reason;
+        }
+      } catch {
+        // Skip malformed SSE lines
+      }
+    }
+  }
+
+  // Drain remaining buffer
+  if (buffer.trim().startsWith("data: ")) {
+    const json = buffer.trim().slice(6);
+    if (json !== "[DONE]") {
+      try {
+        const parsed = JSON.parse(json) as {
+          choices?: Array<{ delta?: { content?: string }; finish_reason?: string }>;
+        };
+        const choice = parsed.choices?.[0];
+        if (choice?.delta?.content) {
+          accumulated += choice.delta.content;
+          tokenCount++;
+          onChunk(accumulated, tokenCount);
+        }
+        if (choice?.finish_reason) {
+          finishReason = choice.finish_reason;
+        }
+      } catch {
+        // ignore
+      }
+    }
+  }
+
+  if (!accumulated) {
+    throw new Error("Direct LLM stream returned empty content");
+  }
+
+  return { text: accumulated, finishReason };
 }

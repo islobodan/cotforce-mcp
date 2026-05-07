@@ -265,6 +265,7 @@ async function sampleLLM(
     isRetry?: boolean;
     budgetOverride?: number;
     modelOverride?: string;
+    onChunk?: (accumulated: string, tokenCount: number) => void;
   }
 ): Promise<SamplingResult> {
   const baseTemp = parseFloat(process.env.BASE_TEMP || "0.1");
@@ -315,6 +316,7 @@ async function sampleLLM(
         temperature,
         apiKey,
         baseUrl,
+        onChunk: options?.onChunk,
       });
 
       const fullText = result.text;
@@ -470,6 +472,22 @@ server.setRequestHandler(CallToolRequestSchema, async (request, extra) => {
   const totalSteps = (MAX_RETRIES + 1) * (getFallbackModels().length + 1);
   const notifyProgress = createProgressSender(progressToken, extra.sendNotification as unknown as SendNotificationFn, totalSteps);
 
+  // Streaming progress: if client supports progress, stream reasoning text chunk by chunk
+  const onStreamChunk = progressToken
+    ? (accumulated: string, _tokenCount: number) => {
+        // Fire-and-forget — don't block the SSE stream on notification delivery
+        extra.sendNotification({
+          method: "notifications/progress",
+          params: {
+            progressToken,
+            progress: Math.min(_tokenCount, totalSteps),
+            total: totalSteps,
+            message: `💭 ${accumulated.slice(-200)}`,
+          },
+        } as Parameters<typeof extra.sendNotification>[0]).catch(() => {});
+      }
+    : undefined;
+
   if (request.params.name !== "solve_problem") {
     recordFailure();
     throw new McpError(
@@ -568,6 +586,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request, extra) => {
           temperature,
           isRetry,
           modelOverride: currentModel,
+          onChunk: onStreamChunk,
         });
         lastRaw = samplingResult.text;
         lastTokenCount = samplingResult.tokenCount;

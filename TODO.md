@@ -24,8 +24,8 @@ Based on the honest value review, here are actionable improvements, organized by
 - [x] **Support clients without MCP sampling**
   ✅ `MODE=auto/direct` with `API_KEY` and `API_BASE_URL` enables direct OpenAI-compatible HTTP calls. `auto` automatically falls back to direct HTTP when client lacks sampling support. Works with LMStudio, VS Code extensions, and any OpenAI-compatible provider.
 
-- [ ] **Implement true streaming**
-  Replace the `stream: true` flag with actual token-by-token emission using SSE or WebSocket transport. The current `server.request` does not support streaming; use lower-level transport or MCP notifications to push partial CoT text.
+- [ ] **Implement true streaming**  
+  **POSTPONED** — requires custom SSE/WebSocket transport (~400 lines). Current workaround: progress notification streaming (below) sends partial reasoning as `notifications/progress` messages when client provides `progressToken`. User sees reasoning growing in real-time via progress text.
 
 - [x] **Add output truncation detection**
   ✅ `TRUNCATION_THRESHOLD` env var (default 0.95). Detects truncation via `finish_reason: "length"` and token ratio. Recovery-first strategy: tries to parse truncated JSON before retrying with 1.5x budget.
@@ -121,10 +121,10 @@ Based on the honest value review, here are actionable improvements, organized by
 
 ## 🔮 Future / Experimental
 
-- [ ] **Self‑optimizing prompt generator**  
+- [ ] **Self-optimizing prompt generator**
   Use the rejection log to automatically rewrite the system prompt (e.g., via another LLM call) to close recurring failure patterns.
 
-- [ ] **Auto conversationContext**  
+- [ ] **Auto conversationContext**
   CotForce tracks the last N `solve_problem` results internally. If the new call doesn't pass `history` but looks like a follow-up (short prompt, no explicit problem statement), auto-inject recent context. Avoids the caller having to manage history manually.
 
 - [x] **Plug-in architecture for parsers**
