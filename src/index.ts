@@ -97,6 +97,24 @@ function formatResult(result: unknown): string {
   return String(result);
 }
 
+/** Build structured tool result with separate reasoning/result/metadata blocks. */
+function buildCoTResult(
+  reasoning: unknown,
+  result: unknown,
+  tokenMeta: string,
+  modelMeta: string
+): { content: Array<{ type: "text"; text: string }> } {
+  const content: Array<{ type: "text"; text: string }> = [
+    { type: "text", text: formatResult(reasoning) },
+    { type: "text", text: formatResult(result) },
+  ];
+  const meta = (tokenMeta + modelMeta).trim();
+  if (meta) {
+    content.push({ type: "text", text: meta });
+  }
+  return { content };
+}
+
 // ------------------------------------------------------------------
 // 5. PROGRESS NOTIFICATIONS
 // ------------------------------------------------------------------
@@ -460,17 +478,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request, extra) => {
   if (cached) {
     recordSuccess();
     logger.info("Cache hit", { keyLength: cacheKey.length });
-    const tokenMeta = `\n\n📊 Token Usage: (cached)`;
-    return {
-      content: [
-        {
-          type: "text",
-          text:
-            `🤖 Agentic CoT Result:\n\n**Reasoning:** ${formatResult(cached.reasoning)}\n\n**Answer:** ${formatResult(cached.result)}` +
-            tokenMeta,
-        },
-      ],
-    };
+    return buildCoTResult(cached.reasoning, cached.result, `📊 Token Usage: (cached)`, "");
   }
 
   const BASE_TEMP = parseFloat(process.env.BASE_TEMP || "0.1");
@@ -570,17 +578,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request, extra) => {
               ? `\n\n📊 Token Usage: ${lastTokenCount.input} in / ${lastTokenCount.output} out / ${lastTokenCount.budget} budget`
               : "";
             const modelMeta = models.length > 1 ? `\n🔄 Model used: ${currentModel ?? "host default"}` : "";
-            return {
-              content: [
-                {
-                  type: "text",
-                  text:
-                    `🤖 Agentic CoT Result:\n\n**Reasoning:** ${formatResult(recovered.reasoning)}\n\n**Answer:** ${formatResult(recovered.result)}` +
-                    tokenMeta +
-                    modelMeta,
-                },
-              ],
-            };
+            return buildCoTResult(recovered.reasoning, recovered.result, tokenMeta, modelMeta);
           }
 
           // Recovery failed — retry with increased budget and conciseness hint
@@ -647,17 +645,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request, extra) => {
             ? `\n\n📊 Token Usage: ${lastTokenCount.input} in / ${lastTokenCount.output} out / ${lastTokenCount.budget} budget`
             : "";
           const modelMeta = models.length > 1 ? `\n🔄 Model used: ${currentModel ?? "host default"}` : "";
-          return {
-            content: [
-              {
-                type: "text",
-                text:
-                  `🤖 Agentic CoT Result:\n\n**Reasoning:** ${formatResult(parsed.reasoning)}\n\n**Answer:** ${formatResult(parsed.result)}` +
-                  tokenMeta +
-                  modelMeta,
-              },
-            ],
-          };
+          return buildCoTResult(parsed.reasoning, parsed.result, tokenMeta, modelMeta);
         }
 
         lastRejectionMemo = samplingResult.text.slice(0, REJECTION_MEMO_MAX_LENGTH);

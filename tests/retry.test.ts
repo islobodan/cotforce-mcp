@@ -1,5 +1,5 @@
 import { MCPClient, setupJestMatchers } from "@slbdn/mcp-tester";
-import { createServer, AddressInfo } from "net";
+import { AddressInfo } from "net";
 import http from "http";
 import { join, dirname } from "path";
 import { fileURLToPath } from "url";
@@ -72,7 +72,11 @@ function createMockLLMServer(
 describe("Retry Loop Integration", () => {
   let client: MCPClient;
   let mockServer: ReturnType<typeof createMockLLMServer>;
-  const originalEnv: Record<string, string | undefined> = {};
+
+  /** Extract text content from MCP tool result, handling discriminated union. */
+  function getText(result: { content: Array<{ type: string; text?: string }> }): string {
+    return result.content[0]?.text ?? "";
+  }
 
   beforeAll(() => {
     setupJestMatchers();
@@ -125,7 +129,7 @@ describe("Retry Loop Integration", () => {
 
       // Should return a fallback since all attempts returned non-JSON
       expect(result.content).toBeDefined();
-      const text = result.content[0]?.text || "";
+      const text = getText(result);
       expect(text).toContain("could not be parsed");
       expect(text).toContain("42");
       expect(mockServer.callCount()).toBe(3); // MAX_RETRIES + 1
@@ -152,9 +156,9 @@ describe("Retry Loop Integration", () => {
       });
 
       // Should recover from truncated response without retrying
-      const text = result.content[0]?.text || "";
-      expect(text).toContain("Agentic CoT Result");
+      const text = getText(result);
       expect(text).toContain("6 * 7");
+      expect(text).toContain("[Response truncated]");
       expect(mockServer.callCount()).toBe(1); // No retry needed
     });
   });
@@ -188,8 +192,8 @@ describe("Retry Loop Integration", () => {
       // First attempt returns { result: "42" } which doesn't have { value: number }
       // so schema validation fails and retries
       // Second attempt should succeed
-      const text = result.content[0]?.text || "";
-      expect(text).toContain("Agentic CoT Result");
+      const text = getText(result);
+      expect(text).toContain("Step 1: 6 * 7 = 42.");
       expect(mockServer.callCount()).toBe(2);
     });
   });
@@ -219,7 +223,7 @@ describe("Retry Loop Integration", () => {
       });
 
       // Should try primary (3 attempts) + fallback (3 attempts) = 6 calls
-      const text = result.content[0]?.text || "";
+      const text = getText(result);
       expect(text).toContain("could not be parsed");
       expect(mockServer.callCount()).toBe(6);
     });

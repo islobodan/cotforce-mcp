@@ -59,12 +59,12 @@ describe("createRejectionMemory", () => {
   it("evicts oldest when over maxSize", () => {
     const mem = createRejectionMemory(3, 60_000);
     const now = Date.now();
-    mem.record({ pattern: "a", timestamp: now - 100, snippet: "1" });
-    mem.record({ pattern: "b", timestamp: now - 50, snippet: "2" });
-    mem.record({ pattern: "c", timestamp: now, snippet: "3" });
-    mem.record({ pattern: "d", timestamp: now + 50, snippet: "4" });
+    mem.record({ pattern: "unknown" as const, timestamp: now - 100, snippet: "1" });
+    mem.record({ pattern: "no-json" as const, timestamp: now - 50, snippet: "2" });
+    mem.record({ pattern: "preamble" as const, timestamp: now, snippet: "3" });
+    mem.record({ pattern: "truncated" as const, timestamp: now + 50, snippet: "4" });
     expect(mem.getWindow()).toHaveLength(3);
-    expect(mem.getWindow()[0].pattern).toBe("b"); // "a" was evicted
+    expect(mem.getWindow()[0].pattern).toBe("no-json"); // "unknown" was evicted
   });
 
   it("builds preemptive hint when pattern is recurring", () => {
