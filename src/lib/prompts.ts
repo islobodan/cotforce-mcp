@@ -209,12 +209,21 @@ const MODEL_PROMPTS: Record<string, string> = {
 
 /**
  * Select the appropriate system prompt for the given model.
- * Falls back to the default AGENTIC_SYSTEM_PROMPT if model is unknown.
+ * First tries exact match, then prefix match, then falls back to default.
  */
 export function getSystemPrompt(modelHint?: string): string {
   if (!modelHint) return AGENTIC_SYSTEM_PROMPT;
   const normalized = modelHint.toLowerCase().trim();
-  return MODEL_PROMPTS[normalized] ?? AGENTIC_SYSTEM_PROMPT;
+
+  // Exact match (fast path)
+  if (MODEL_PROMPTS[normalized]) return MODEL_PROMPTS[normalized];
+
+  // Prefix match — handles long model names like "gemma-4-e4b-it-mlx"
+  for (const [key, prompt] of Object.entries(MODEL_PROMPTS)) {
+    if (normalized.startsWith(key)) return prompt;
+  }
+
+  return AGENTIC_SYSTEM_PROMPT;
 }
 
 export const CORRECTION_SUFFIX = `

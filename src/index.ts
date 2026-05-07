@@ -102,7 +102,13 @@ const SolveProblemArgsSchema = z.object({
 function formatResult(result: unknown): string {
   if (result === null) return "null";
   if (result === undefined) return "undefined";
-  if (typeof result === "object") return JSON.stringify(result, null, 2);
+  if (typeof result === "object") {
+    try {
+      return JSON.stringify(result, null, 2);
+    } catch {
+      return String(result);
+    }
+  }
   return String(result);
 }
 
@@ -117,7 +123,7 @@ function buildCoTResult(
     { type: "text", text: formatResult(reasoning) },
     { type: "text", text: formatResult(result) },
   ];
-  const meta = (tokenMeta + modelMeta).trim();
+  const meta = [tokenMeta, modelMeta].filter(Boolean).join(" ").trim();
   if (meta) {
     content.push({ type: "text", text: meta });
   }
@@ -455,7 +461,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
 }));
 
 // ------------------------------------------------------------------
-// 11. TOOL EXECUTION WITH CHAOS PROTOCOL
+// 11. TOOL EXECUTION (retry loop with fallback models)
 // ------------------------------------------------------------------
 
 // Result cache — shared across requests
@@ -474,17 +480,17 @@ server.setRequestHandler(CallToolRequestSchema, async (request, extra) => {
 
   // Streaming progress: if client supports progress, stream reasoning text chunk by chunk
   const onStreamChunk = progressToken
-    ? (accumulated: string, _tokenCount: number) => {
+    ? (accumulated: string, tokenCount: number) => {
         // Fire-and-forget — don't block the SSE stream on notification delivery
         extra.sendNotification({
           method: "notifications/progress",
           params: {
             progressToken,
-            progress: Math.min(_tokenCount, totalSteps),
+            progress: Math.min(tokenCount, totalSteps),
             total: totalSteps,
             message: `💭 ${accumulated.slice(-200)}`,
           },
-        } as Parameters<typeof extra.sendNotification>[0]).catch(() => {});
+        } as ProgressNotification).catch(() => {});
       }
     : undefined;
 
@@ -626,9 +632,9 @@ server.setRequestHandler(CallToolRequestSchema, async (request, extra) => {
               model: currentModel ?? "host default",
             });
             const tokenMeta = lastTokenCount
-              ? `\n\n📊 Token Usage: ${lastTokenCount.input} in / ${lastTokenCount.output} out / ${lastTokenCount.budget} budget`
+              ? `📊 Token Usage: ${lastTokenCount.input} in / ${lastTokenCount.output} out / ${lastTokenCount.budget} budget`
               : "";
-            const modelMeta = models.length > 1 ? `\n🔄 Model used: ${currentModel ?? "host default"}` : "";
+            const modelMeta = models.length > 1 ? `🔄 Model: ${currentModel ?? "host default"}` : "";
             return buildCoTResult(recovered.reasoning, recovered.result, tokenMeta, modelMeta);
           }
 
@@ -693,9 +699,9 @@ server.setRequestHandler(CallToolRequestSchema, async (request, extra) => {
             model: currentModel ?? "host default",
           });
           const tokenMeta = lastTokenCount
-            ? `\n\n📊 Token Usage: ${lastTokenCount.input} in / ${lastTokenCount.output} out / ${lastTokenCount.budget} budget`
+            ? `📊 Token Usage: ${lastTokenCount.input} in / ${lastTokenCount.output} out / ${lastTokenCount.budget} budget`
             : "";
-          const modelMeta = models.length > 1 ? `\n🔄 Model used: ${currentModel ?? "host default"}` : "";
+          const modelMeta = models.length > 1 ? `🔄 Model: ${currentModel ?? "host default"}` : "";
           return buildCoTResult(parsed.reasoning, parsed.result, tokenMeta, modelMeta);
         }
 
@@ -754,19 +760,17 @@ server.setRequestHandler(CallToolRequestSchema, async (request, extra) => {
   recordFailure();
   recordParseLatency(Date.now() - requestStart);
   const tokenMeta = lastTokenCount
-    ? `\n\n📊 Token Usage: ${lastTokenCount.input} in / ${lastTokenCount.output} out / ${lastTokenCount.budget} budget`
+    ? `📊 Token Usage: ${lastTokenCount.input} in / ${lastTokenCount.output} out / ${lastTokenCount.budget} budget`
     : "";
-  const triedModels = models.length > 1 ? `\n🔄 Tried models: ${models.join(", ")}` : "";
-  const errorMeta = lastError ? `\n\n❌ Last error: ${lastError}` : "";
+  const triedModels = models.length > 1 ? `🔄 Tried models: ${models.join(", ")}` : "";
+  const errorMeta = lastError ? `❌ Last error: ${lastError}` : "";
   return {
     content: [
       {
         type: "text",
         text:
           `⚠️ Agentic CoT could not be parsed after trying ${models.length} model(s). Raw LLM output:\n\n${lastRaw || "No output"}` +
-          tokenMeta +
-          triedModels +
-          errorMeta,
+          [tokenMeta, triedModels, errorMeta].filter(Boolean).join(" "),
       },
     ],
     isError: false,

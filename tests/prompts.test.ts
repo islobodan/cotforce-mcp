@@ -117,4 +117,12 @@ describe("getSystemPrompt", () => {
     expect(SMALL_MODEL_SYSTEM_PROMPT).toMatch(/"result":\s*"Paris"/);
     expect(SMALL_MODEL_SYSTEM_PROMPT).toMatch(/"result":\s*{/);
   });
+
+  it("prefix-matches long model names like 'gemma-4-e4b-it-mlx'", () => {
+    expect(getSystemPrompt("gemma-4-e4b-it-mlx")).toBe(SMALL_MODEL_SYSTEM_PROMPT);
+    expect(getSystemPrompt("qwen3-72b-instruct")).toBe(SMALL_MODEL_SYSTEM_PROMPT);
+    expect(getSystemPrompt("llama-3.1-8b")).toBe(SMALL_MODEL_SYSTEM_PROMPT);
+    // Exact match still works
+    expect(getSystemPrompt("gpt-4o")).toBe(GPT4_SYSTEM_PROMPT);
+  });
 });
